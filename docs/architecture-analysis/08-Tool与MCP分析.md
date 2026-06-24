@@ -70,9 +70,23 @@ sequenceDiagram
 ```python
 # tools/registry.py
 class ToolRegistry:
-    def register(self, name, toolset, schema, handler, 
-                 check_fn=None, requires_env=None, **kwargs):
-        """注册工具"""
+    # 真实签名 (registry.py:234)
+    def register(
+        self,
+        name,
+        toolset,
+        schema,
+        handler,
+        check_fn=None,
+        requires_env=None,
+        is_async=False,
+        description="",
+        emoji="",
+        max_result_size_chars=None,
+        dynamic_schema_overrides=None,
+        override=False,
+    ):
+        """注册工具，构建 ToolEntry 并写入工具表"""
         entry = ToolEntry(
             name=name,
             toolset=toolset,
@@ -80,10 +94,20 @@ class ToolRegistry:
             handler=handler,
             check_fn=check_fn,
             requires_env=requires_env or [],
-            **kwargs
+            is_async=is_async,
+            description=description,
+            emoji=emoji,
+            max_result_size_chars=max_result_size_chars,
         )
         self._tools[name] = entry
-        self._generation += 1
+        self._generation += 1  # 自增代际，使工具快照失效
+
+
+# ToolEntry 是一个使用 __slots__ 的类 (registry.py:77)
+class ToolEntry:
+    __slots__ = ("name", "toolset", "schema", "handler", "check_fn",
+                 "requires_env", "is_async", "description", "emoji",
+                 "max_result_size_chars", ...)
 ```
 
 ### 10.2.2 自注册模式
@@ -120,9 +144,10 @@ registry.register(
 ## 10.3 工具发现机制
 
 ```python
-# 自动发现流程
-def discover_builtin_tools():
-    tools_dir = Path(__file__).parent
+# 自动发现流程 —— discover_builtin_tools 是 registry.py:57 的模块级函数
+# （不是 ToolRegistry 的方法，也不存在 get_all_tools 方法）
+def discover_builtin_tools(tools_dir: Optional[Path] = None) -> List[str]:
+    tools_dir = tools_dir or Path(__file__).parent
     for path in tools_dir.glob("*.py"):
         if path.name in ("__init__.py", "registry.py", "mcp_tool.py"):
             continue
@@ -156,21 +181,26 @@ flowchart TB
 ```
 
 ```python
-# tools/mcp_tool.py - MCP 工具集成
-class MCPTool:
-    """MCP 协议工具"""
-    
-    def __init__(self, server_config: dict):
-        self.server = self._connect(server_config)
-    
-    def list_tools(self) -> List[ToolSchema]:
-        """列出 MCP 服务器提供的工具"""
-        return self.server.list_tools()
-    
-    def call_tool(self, name: str, args: dict) -> str:
-        """调用 MCP 工具"""
-        result = self.server.call_tool(name, args)
-        return json.dumps(result)
+# tools/mcp_tool.py - MCP 客户端集成
+# 这里没有 MCPTool 类，也没有 list_tools()/call_tool() 方法。
+# 真实内容是一组用于连接/校验外部 MCP 服务器的函数与一个采样处理类：
+def _resolve_stdio_command(command: str, env: dict) -> tuple[str, dict]:
+    """解析以 stdio 方式启动的 MCP 服务器命令"""
+    ...
+
+def _validate_remote_mcp_url(server_name: str, url: Any) -> str:
+    """校验远程 MCP 服务器 URL"""
+    ...
+
+class SamplingHandler:  # (tools/mcp_tool.py:846)
+    """处理 MCP 服务器发起的 sampling（让宿主代为调用 LLM）请求"""
+    ...
+
+
+# 而 MCP 服务器的"宿主"（把 Hermes 自身的能力作为 MCP server 暴露出去）
+# 实现在根目录 mcp_serve.py：
+#   - def create_mcp_server(event_bridge=None) -> "FastMCP"  (:450) 基于 FastMCP 构建
+#   - class EventBridge  (:204) 在 MCP 与内部事件之间桥接
 ```
 
 ## 10.5 工具分类
@@ -192,27 +222,15 @@ class MCPTool:
 
 ```python
 # tools/approval.py - 命令审批
-class ApprovalSystem:
-    """危险命令审批系统"""
-    
-    DANGEROUS_PATTERNS = [
-        "rm -rf",
-        "sudo",
-        "drop table",
-        "DELETE FROM",
-        # ...
-    ]
-    
-    def check_approval(self, command: str, session_key: str) -> str:
-        """检查是否需要审批"""
-        if self._is_safe(command):
-            return "approved"
-        elif self._is_denylisted(command):
-            return "denied"
-        elif self._is_allowed(session_key, command):
-            return "approved"
-        else:
-            return "pending"  # 需要用户确认
+# 注意：这里没有 ApprovalSystem 类。审批能力由一组模块级函数 + contextvar 会话状态实现，
+# 例如 detect_hardline_command()（:333，识别 hardline 危险命令）、
+# _check_sudo_stdin_guard()（:314）、以及 set_current_session_key() 等用于
+# 在调用上下文中传递会话/可观测性信息的辅助函数。下面用伪代码示意其语义：
+
+# 危险命令检测（示意，真实实现见 detect_hardline_command 等函数）
+def detect_hardline_command(command: str) -> tuple:
+    """识别需要用户确认的高危命令（如 rm -rf / sudo 等），返回判定结果"""
+    ...
 ```
 
 ## 10.7 沙箱模型
@@ -245,55 +263,55 @@ flowchart LR
 ## 10.8 工具集定义
 
 ```python
-# toolsets.py - 工具集定义
+# toolsets.py - 工具集定义 (TOOLSETS 起始于 :89)
+# 每个条目的真实形状为 {"description":.., "tools":[..], "includes":[..]}
 TOOLSETS = {
     "terminal": {
-        "tools": ["terminal", "read_terminal_tool"],
-        "description": "Terminal command execution",
-    },
-    "browser": {
-        "tools": ["browser_navigate", "browser_click", "browser_type"],
-        "description": "Browser automation",
+        "description": "Terminal/command execution and process management tools",
+        "tools": ["terminal", "process"],   # 注意是 terminal + process（没有 read_terminal_tool）
+        "includes": [],
     },
     "file": {
-        "tools": ["read_file", "write_file", "patch", "search_files"],
         "description": "File operations",
+        "tools": ["read_file", "write_file", "patch", "search_files"],
+        "includes": [],
     },
     "delegation": {
-        "tools": ["delegate_task"],
         "description": "Subagent delegation",
+        "tools": ["delegate_task"],
+        "includes": [],
     },
     "memory": {
-        "tools": ["memory", "session_search"],
         "description": "Memory management",
+        "tools": ["memory"],                # memory 工具集只有 memory
+        "includes": [],
     },
-    "safe": {
-        "tools": ["web_search", "read_file"],
-        "description": "Read-only safe tools",
+    "session_search": {                      # session_search 是独立工具集 (:220)，不并入 memory
+        "description": "Search and recall past conversations with summarization",
+        "tools": ["session_search"],
+        "includes": [],
     },
+    # ... 其余工具集（web/vision/skills/code_execution 等）
 }
 ```
 
 ## 10.9 工具输出限制
 
 ```python
-# tools/tool_output_limits.py
-class ToolOutputLimits:
-    """工具输出大小限制"""
-    
-    DEFAULT_MAX_CHARS = 50_000
-    DEFAULT_MAX_LINES = 5_000
-    
-    LIMITS = {
-        "terminal": {"max_chars": 100_000, "max_lines": 10_000},
-        "read_file": {"max_chars": 200_000, "max_lines": None},
-        "browser": {"max_chars": 50_000, "max_lines": 2_000},
-        "search_files": {"max_chars": 30_000, "max_lines": 500},
-    }
-    
-    def truncate(self, output: str, tool_name: str) -> str:
-        limits = self.LIMITS.get(tool_name, self.DEFAULT)
-        if limits.max_chars and len(output) > limits.max_chars:
-            output = output[:limits.max_chars] + "\n... [truncated]"
-        return output
+# 工具输出大小限制并没有集中在某个 ToolOutputLimits 类 / 全局 LIMITS 字典中
+# （二者均不存在）。限制是**按工具在注册时**通过 register(..., max_result_size_chars=...)
+# 单独声明的，由 ToolEntry 持有、循环在收集结果时据此截断。
+#
+# 例如 tools/file_tools.py:1757 起的注册：
+registry.register(
+    name="read_file", toolset="file", schema=READ_FILE_SCHEMA,
+    handler=_handle_read_file, check_fn=_check_file_reqs, emoji="📖",
+    max_result_size_chars=100_000,         # 该工具的输出上限
+)
+registry.register(
+    name="write_file", toolset="file", schema=WRITE_FILE_SCHEMA,
+    handler=_handle_write_file, check_fn=_check_file_reqs, emoji="✍️",
+    max_result_size_chars=100_000,
+)
+# patch / search_files 同样各自声明 max_result_size_chars=100_000
 ```

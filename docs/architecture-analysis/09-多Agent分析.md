@@ -16,7 +16,7 @@ Hermes Agent 通过 `delegate_task` 工具支持多 Agent 协作：
 │     ┌──────────┐     ┌──────────┐     ┌──────────┐              │
 │     │  Child   │     │  Child   │     │  Child   │              │
 │     │  Agent 1 │     │  Agent 2 │     │  Agent 3 │              │
-│     │ (Worker) │     │ (Worker) │     │ (Worker) │              │
+│     │  (leaf)  │     │  (leaf)  │     │  (leaf)  │              │
 │     └──────────┘     └──────────┘     └──────────┘              │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -24,10 +24,10 @@ Hermes Agent 通过 `delegate_task` 工具支持多 Agent 协作：
 
 ## 11.2 支持的模式
 
-### 11.2.1 Manager-Worker 模式
+### 11.2.1 Orchestrator-Leaf 模式
 
 ```python
-# 父 Agent 作为 Manager，分派任务给 Worker
+# 父 Agent 作为 orchestrator，分派子任务给 leaf 子 Agent
 result = delegate_task(
     goal="分析这三个代码文件并生成报告",
     tasks=[
@@ -35,7 +35,7 @@ result = delegate_task(
         {"goal": "分析 file2.py", "context": "文件路径..."},
         {"goal": "分析 file3.py", "context": "文件路径..."},
     ],
-    role="manager"  # 可分派
+    role="orchestrator"  # 可分派；子任务默认为 leaf
 )
 ```
 
@@ -79,45 +79,38 @@ sequenceDiagram
 
 ```python
 # tools/delegate_tool.py
-class DelegateTool:
-    """子 Agent 委托工具"""
-    
-    def delegate_task(
-        self,
-        goal: str,
-        tasks: List[Dict] = None,
-        context: str = None,
-        role: str = "leaf",  # leaf | orchestrator
-        background: bool = False,
-        toolsets: List[str] = None,
-        max_iterations: int = None,
-        **kwargs
-    ) -> str:
-        """委托任务给子 Agent"""
-        
-        # 1. 验证角色
-        if role == "leaf":
-            blocked_tools = DELEGATE_BLOCKED_TOOLS
-        else:  # orchestrator
-            blocked_tools = DELEGATE_BLOCKED_TOOLS - {"delegate_task"}
-        
-        # 2. 创建子 Agent
-        child = AIAgent(
-            base_url=self.base_url,
-            model=self.model,
-            toolsets=toolsets,
-            blocked_tools=blocked_tools,
-            max_iterations=max_iterations or 30,
-            # ... 其他配置
-        )
-        
-        # 3. 执行
-        if background:
-            return self._start_background(child, goal, context)
-        elif tasks:
-            return self._run_parallel(children, tasks)
-        else:
-            return child.run_conversation(goal, context)
+# delegate_task 是模块级函数（delegate_tool.py:2074），并非 DelegateTool 类的方法。
+def delegate_task(
+    goal: str = None,
+    context: str = None,
+    toolsets: List[str] = None,
+    tasks: List[Dict] = None,
+    max_iterations: int = None,
+    acp_command: str = None,
+    acp_args: list = None,
+    role: str = None,        # 仅 "leaf" | "orchestrator"，未知值经 _normalize_role 强制为 leaf
+    background: bool = False,
+    parent_agent=None,
+) -> str:
+    """委托任务给子 Agent"""
+
+    # 1. 规范化角色（tools/delegate_tool.py:351 _normalize_role）
+    role = _normalize_role(role)  # leaf 或 orchestrator
+    if role == "leaf":
+        blocked_tools = DELEGATE_BLOCKED_TOOLS
+    else:  # orchestrator 允许再次 delegate_task
+        blocked_tools = DELEGATE_BLOCKED_TOOLS - {"delegate_task"}
+
+    # 2. 构建子 Agent（tools/delegate_tool.py:981 _build_child_agent）
+    child = _build_child_agent(
+        toolsets=toolsets,
+        blocked_tools=blocked_tools,
+        max_iterations=max_iterations,
+        # ... 其他配置
+    )
+
+    # 3. 执行：后台异步 / 并行 fan-out / 单任务
+    ...
 ```
 
 ## 11.5 多 Agent 架构图
@@ -163,35 +156,33 @@ graph TB
 
 ## 11.6 并行执行控制
 
+> 注：代码中并无 `ParallelExecution` 类。真实的 fan-out 由 `delegate_task` 内部使用一个守护 `ThreadPoolExecutor` 实现，并发上限读自 `_get_max_concurrent_children`（`tools/delegate_tool.py:368`），异步上限读自 `_get_max_async_children`（:412）。下列为说明性伪代码。
+
 ```python
-# 并行执行配置
-class ParallelExecution:
-    def __init__(self):
-        self.max_concurrent = 3  # 最大并发数
-        self.timeout = 300  # 超时秒数
-    
-    def run_parallel(self, tasks: List[Dict]) -> List[str]:
-        """并行执行多个任务"""
-        with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
-            futures = {
-                executor.submit(self._run_task, task): task
-                for task in tasks
-            }
-            results = []
-            for future in as_completed(futures, timeout=self.timeout):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception as e:
-                    results.append(f"Error: {e}")
-            return results
+# 说明性伪代码：并行 fan-out（真实实现内联在 delegate_task 中）
+def _run_parallel(tasks: List[Dict]) -> List[str]:
+    max_workers = _get_max_concurrent_children()  # config: max_concurrent_children，默认 3
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_run_task, task): task
+            for task in tasks
+        }
+        results = []
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                results.append(f"Error: {e}")
+        return results
 ```
 
 ## 11.7 结果汇总机制
 
+> 注：`aggregate_results` 为说明性示例，非代码中的真实函数。实际子 Agent 输出由 `_extract_output_tail`（`tools/delegate_tool.py:232`）提取并回传给父 Agent。下列伪代码仅示意"成功/失败分类汇总"的思路。
+
 ```python
+# 说明性伪代码：汇总多个子 Agent 的结果
 def aggregate_results(results: List[str]) -> str:
-    """汇总多个子 Agent 的结果"""
     
     # 1. 分类结果
     successes = [r for r in results if not r.startswith("Error:")]
@@ -222,9 +213,10 @@ def aggregate_results(results: List[str]) -> str:
 
 | 角色 | 权限 | 描述 |
 |-----|------|-----|
-| `leaf` | 基础工具集 | 不能委托、不能调用某些危险工具 |
-| `worker` | 扩展工具集 | 可以使用更多工具 |
-| `orchestrator` | 全部工具 | 可以创建子 Agent |
+| `leaf` | 基础工具集 | 不能委托、不能调用 `DELEGATE_BLOCKED_TOOLS` 中的工具 |
+| `orchestrator` | 可再委托 | 可继续调用 `delegate_task` 创建子 Agent |
+
+> 注：代码中仅存在 `leaf` 与 `orchestrator` 两种角色（`_normalize_role`，`tools/delegate_tool.py:351` 会将未知值强制为 `leaf`）。不存在 `manager` / `worker` 角色。
 
 ```python
 # 工具阻止列表
@@ -278,10 +270,12 @@ flowchart LR
 
 KANBAN_TOOLS = [
     "kanban_create",    # 创建任务
-    "kanban_show",     # 显示看板
-    "kanban_complete", # 完成任务
-    "kanban_block",    # 阻塞任务
-    "kanban_comment",  # 评论
-    "kanban_link",     # 关联任务
+    "kanban_show",      # 显示看板
+    "kanban_list",      # 列出任务
+    "kanban_complete",  # 完成任务
+    "kanban_block",     # 阻塞任务
+    "kanban_unblock",   # 解除阻塞
+    "kanban_comment",   # 评论
+    "kanban_heartbeat", # 心跳/认领状态
 ]
 ```

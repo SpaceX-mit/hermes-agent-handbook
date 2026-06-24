@@ -2,7 +2,7 @@
 
 ## 9.1 记忆层次架构
 
-Hermes Agent 的记忆系统分为三层：
+Hermes Agent 的记忆系统在概念上可分为三层（注意："层 / tier" 仅是本文用于说明的抽象描述，代码中并没有对应的 "tier" 术语或枚举）：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -21,9 +21,8 @@ Hermes Agent 的记忆系统分为三层：
 │                              ▼                                   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │              Short-term Memory (短期记忆)                  │   │
-│  │  • SessionDB 中的消息历史                                  │   │
-│  │  • FTS5 全文索引                                          │   │
-│  │  • Checkpoint 快照                                        │   │
+│  │  • SessionDB 中的消息历史 (messages 表)                    │   │
+│  │  • FTS5 全文索引 (messages_fts + messages_fts_trigram)     │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                              ▲                                   │
 │                              │ 同步                              │
@@ -138,10 +137,10 @@ class MemoryProvider(ABC):
         return ""
     
     @abstractmethod
-    def prefetch(self, query: str, session_id: str = "") -> str:
-        """预取相关记忆"""
+    def prefetch(self, query: str, *, session_id: str = "") -> str:
+        """预取相关记忆（session_id 为仅限关键字参数）"""
     
-    def queue_prefetch(self, query: str, session_id: str = ""):
+    def queue_prefetch(self, query: str, *, session_id: str = ""):
         """队列预取"""
     
     @abstractmethod
@@ -161,47 +160,72 @@ class MemoryProvider(ABC):
 ## 9.5 内置记忆工具
 
 ```python
-# tools/memory_tool.py - 内置记忆工具
-class MemoryTool:
-    """内置记忆操作工具"""
-    
-    TOOLS = [
-        {
-            "name": "memory",
-            "description": "Add information to long-term memory",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "The information to remember"
-                    },
-                    "target": {
-                        "type": "string", 
-                        "enum": ["memory", "user"],
-                        "description": "Where to store"
-                    }
-                },
-                "required": ["content", "target"]
-            }
-        }
-    ]
+# tools/memory_tool.py - 内置记忆存储
+# 核心类是 MemoryStore (tools/memory_tool.py:113)，负责把记忆条目读写到磁盘上的
+# MEMORY.md / USER.md 文件；记忆工具本身通过 registry.register(name="memory", ...)
+# 在文件末尾 (:1072) 注册到工具表中。
+class MemoryStore:
+    """内置记忆条目存储（写入 MEMORY.md / USER.md）"""
+
+    # target 是枚举: "memory"（通用记忆）或 "user"（用户记忆），定义于 :923
+    def add(self, target: str, content: str) -> Dict[str, Any]: ...
+    def replace(self, target: str, old_text: str, content: str) -> Dict[str, Any]: ...
+    def remove(self, target: str, old_text: str) -> Dict[str, Any]: ...
+    def save_to_disk(self, target: str): ...
+
+
+# 单一 `memory` 工具，用 action 参数区分操作 (add / replace / remove)，
+# 支持 batch 批量操作。简化后的 schema：
+MEMORY_TOOL_SCHEMA = {
+    "name": "memory",
+    "description": "Add / replace / remove long-term memory entries",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "action":   {"type": "string", "enum": ["add", "replace", "remove"]},
+            "target":   {"type": "string", "enum": ["memory", "user"]},
+            "content":  {"type": "string", "description": "新条目内容 (add/replace)"},
+            "old_text": {"type": "string", "description": "要替换/删除的现有文本"},
+            "batch":    {"type": "array",  "description": "批量操作列表"},
+        },
+        "required": ["action"],
+    },
+}
 ```
 
 ## 9.6 FTS5 全文搜索
 
 ```sql
--- SessionDB 中的 FTS5 表
-CREATE VIRTUAL TABLE messages_fts USING fts5(
-    content,
-    content='messages',
-    content_rowid='rowid',
-    tokenize='porter unicode61'
+-- SessionDB 中的 FTS5 表 (hermes_state.py:612)
+-- 这是一个 contentless（无外部内容表）的 FTS5 表，使用 DEFAULT tokenizer
+-- （不是 porter/unicode61，也没有 content='messages' / content_rowid）。
+-- 索引内容由 messages 表上的 INSERT/UPDATE/DELETE 触发器填充，
+-- 索引文本 = content || tool_name || tool_calls。
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+    content
 );
 
--- 搜索语法
+-- 触发器示例：插入消息时同步写入 FTS（rowid 对齐 messages.id）
+CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, content) VALUES (
+        new.id,
+        COALESCE(new.content, '') || ' ' ||
+        COALESCE(new.tool_name, '') || ' ' ||
+        COALESCE(new.tool_calls, '')
+    );
+END;
+
+-- 第二张 FTS 表：trigram 分词，用于 CJK（中日韩）子串搜索 (hermes_state.py:641)
+-- 默认 unicode61 分词器会把 CJK 字符拆成单字，破坏短语匹配；trigram 分词器
+-- 生成重叠的 3 字节序列，使任意脚本（CJK、泰文等）的子串查询都能原生工作。
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts_trigram USING fts5(
+    content,
+    tokenize='trigram'
+);
+
+-- 搜索语法（rowid 对应 messages.id）
 SELECT m.* FROM messages m
-JOIN messages_fts f ON m.rowid = f.rowid
+JOIN messages_fts f ON m.id = f.rowid
 WHERE messages_fts MATCH 'search query'
 ORDER BY rank;
 ```
@@ -222,84 +246,75 @@ flowchart TD
 ```
 
 ```python
-# Context Compressor (agent/context_compressor.py)
-class ContextCompressor:
-    def compress(self, messages: List[Dict]) -> List[Dict]:
-        """压缩上下文"""
-        
-        # 1. 分离可压缩部分
-        compressible = messages[:-10]  # 保留最近10条
-        recent = messages[-10:]
-        
-        # 2. 生成摘要
-        summary = self.summarize(compressible)
-        
-        # 3. 构建新消息列表
-        return [
-            *messages[:1],  # 系统提示
-            {"role": "system", "content": f"Earlier conversation summary:\n{summary}"},
-            *recent
-        ]
+# 上下文压缩并非单一类，而是横跨多个模块协作完成：
+#   - agent/context_compressor.py : class ContextCompressor(ContextEngine) (:612)
+#                                    实际压缩入口 compress() 在 :2354
+#   - agent/conversation_compression.py : 会话级压缩流程
+#   - agent/context_engine.py            : ContextEngine 基类/上下文管理
+#   - agent/memory_manager.py            : MemoryManager.on_pre_compress (:779)
+#                                          在压缩前注入记忆摘要
+class ContextCompressor(ContextEngine):
+    def compress(
+        self,
+        messages: List[Dict[str, Any]],
+        current_tokens: int = None,
+        focus_topic: str = None,
+        force: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """压缩上下文。
+
+        注意：真实实现并不是简单的 "保留最近 10 条 + 摘要其余"，
+        具体的消息选择/摘要/裁剪策略由 ContextEngine 体系决定，
+        这里仅示意其方法签名。
+        """
+        ...
 ```
 
-## 9.8 记忆淘汰策略
-
-```python
-class MemoryEvictionPolicy:
-    """记忆淘汰策略"""
-    
-    # 基于访问频率
-    def by_frequency(self, entries, keep=100):
-        return sorted(entries, key=lambda x: -x.access_count)[:keep]
-    
-    # 基于时间衰减
-    def by_recency(self, entries, max_age_days=30):
-        cutoff = time.time() - max_age_days * 86400
-        return [e for e in entries if e.last_access > cutoff]
-    
-    # 基于重要性
-    def by_importance(self, entries, threshold=0.5):
-        return [e for e in entries if e.importance_score > threshold]
-    
-    # 组合策略
-    def combined(self, entries):
-        entries = self.by_recency(entries)
-        entries = self.by_frequency(entries)
-        return entries[:100]
-```
-
-## 9.9 SessionDB 结构
+## 9.8 SessionDB 结构
 
 ```sql
--- Sessions 表
-CREATE TABLE sessions (
+-- Sessions 表 (hermes_state.py:523) — 实际约有 30 个列，下面列出主要列
+CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
-    parent_session_id TEXT,
-    model_config TEXT,  -- JSON
+    source TEXT NOT NULL,
+    user_id TEXT,
+    model TEXT,
+    model_config TEXT,        -- JSON
     system_prompt TEXT,
+    parent_session_id TEXT,
+    started_at REAL NOT NULL,
     ended_at REAL,
     end_reason TEXT,
-    started_at REAL,
-    workspace_cwd TEXT
+    message_count INTEGER DEFAULT 0,
+    tool_call_count INTEGER DEFAULT 0,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cwd TEXT,                 -- 工作目录（注意列名是 cwd，不是 workspace_cwd）
+    title TEXT,
+    archived INTEGER NOT NULL DEFAULT 0,
+    -- ... 另有 billing/cost/handoff/rewind 等若干列
+    FOREIGN KEY (parent_session_id) REFERENCES sessions(id)
 );
 
--- Messages 表
-CREATE TABLE messages (
-    rowid INTEGER PRIMARY KEY,
-    session_id TEXT,
-    role TEXT,
+-- Messages 表 (hermes_state.py:560)
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,   -- 主键是 id（不是 rowid）
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    role TEXT NOT NULL,
     content TEXT,
-    name TEXT,
-    tool_calls TEXT,    -- JSON
-    tool_results TEXT,  -- JSON
-    created_at REAL,
-    FOREIGN KEY (session_id) REFERENCES sessions(id)
+    tool_call_id TEXT,
+    tool_calls TEXT,          -- JSON（注意：没有 tool_results 列，没有 name 列）
+    tool_name TEXT,
+    timestamp REAL NOT NULL,  -- 时间戳列名是 timestamp
+    token_count INTEGER,
+    finish_reason TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    compacted INTEGER NOT NULL DEFAULT 0
+    -- ... 另有 reasoning/codex/platform_message_id 等若干列
 );
 
--- FTS5 索引
-CREATE VIRTUAL TABLE messages_fts USING fts5(
-    content,
-    content='messages',
-    content_rowid='rowid'
+-- FTS5 索引（contentless，DEFAULT tokenizer；rowid 对齐 messages.id）
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+    content
 );
 ```

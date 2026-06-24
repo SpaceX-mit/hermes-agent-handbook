@@ -37,7 +37,7 @@ graph TB
 
     subgraph "Agent Core"
         AG["AIAgent"]
-        LOOP["ConversationLoop"]
+        LOOP["run_conversation()"]
     end
 
     subgraph "Tool Layer"

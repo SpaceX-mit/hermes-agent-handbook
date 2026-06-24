@@ -2,7 +2,10 @@
 
 ## 8.1 Loop 结构概述
 
-Hermes Agent 的对话循环是其核心，执行以下步骤：
+Hermes Agent 的对话循环以一个**模块级函数** `run_conversation(agent, ...)` 为入口
+（位于 `agent/conversation_loop.py:495`）。需要强调：`conversation_loop.py` 是一个约
+4582 行、由一组函数组成的模块，而**不是**一个类 / 状态机对象——循环逻辑通过函数之间的
+调用与显式状态参数驱动，而非一个集中持有状态的对象。该入口函数执行以下步骤：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -89,28 +92,36 @@ flowchart TD
 
 ## 8.4 终止条件
 
+循环的终止并没有一个集中的 `should_terminate()` 函数（代码中不存在该符号）。
+终止是由 `run_conversation()` 内部的控制流根据以下情形内联判断的：
+
+| 终止情形 | 说明 |
+|---------|------|
+| **无工具调用的最终响应** | 模型返回了文本且不再请求工具，本回合自然结束 |
+| **预算 / 迭代上限耗尽** | 达到 token 预算或最大迭代次数，停止继续调用 |
+| **致命错误** | 经 `classify_api_error()` 判定为不可恢复（如 `auth_permanent`）时中止 |
+| **用户中断** | 收到中断信号（如 Ctrl+C / 取消）后清理并退出 |
+
+> 说明：上述判断分散在循环主体的条件分支中，下面用伪代码示意其语义，
+> 但请注意这是**说明性伪代码**，并非真实存在的独立函数。
+
 ```python
-# 终止条件检查
-def should_terminate(response, budget, error=None) -> bool:
-    """判断是否应该终止循环"""
-    
-    # 1. 明确终止：没有工具调用
-    if not response.tool_calls and response.content:
-        return True
-    
-    # 2. 预算耗尽
-    if not budget.remaining > 0:
-        return True
-    
-    # 3. 错误终止
-    if error and isinstance(error, FatalError):
-        return True
-    
-    # 4. 用户中断
-    if is_interrupted():
-        return True
-    
-    return False
+# 说明性伪代码 —— 实际逻辑内联在 run_conversation() 中，无此独立函数
+# 1. 明确终止：没有工具调用
+if not response.tool_calls and response.content:
+    ...  # 结束回合
+
+# 2. 预算 / 迭代耗尽
+if budget_exhausted or iteration >= max_iterations:
+    ...  # 结束回合
+
+# 3. 不可恢复错误（见 agent/error_classifier.py）
+if classified.reason is FailoverReason.auth_permanent:
+    ...  # 中止
+
+# 4. 用户中断
+if is_interrupted():
+    ...  # 清理并退出
 ```
 
 ## 8.5 失败重试机制
@@ -133,25 +144,20 @@ flowchart TD
 ```
 
 ```python
-class RetryConfig:
-    def __init__(self):
-        self.max_retries = 3
-        self.base_delay = 1.0  # 秒
-        self.max_delay = 60.0
-        self.exponential_base = 2
-    
-    def get_delay(self, attempt: int) -> float:
-        """指数退避"""
-        delay = self.base_delay * (self.exponential_base ** attempt)
-        return min(delay, self.max_delay)
+# 重试逻辑不在某个 `RetryConfig` 类中（代码中不存在该类），而是分布在：
+#   - agent/retry_utils.py        : 退避 / 重试辅助函数
+#   - agent/turn_retry_state.py   : 单回合的重试状态跟踪
+# 退避与重试决策结合 agent/error_classifier.py 的分类结果共同进行。
 
-# 错误分类与重试策略
-RETRYABLE_ERRORS = {
-    "rate_limit": {"retry": True, "backoff": True},
-    "timeout": {"retry": True, "backoff": False},
-    "server_error": {"retry": True, "backoff": True},
-    "auth_error": {"retry": False, "backoff": False},
-    "context_overflow": {"retry": True, "backoff": False, "action": "compress"},
+# 错误分类与重试策略（FailoverReason 成员均为小写，见 error_classifier.py:24）
+RETRYABLE_BEHAVIOR = {
+    FailoverReason.rate_limit:       {"retry": True,  "backoff": True},
+    FailoverReason.timeout:          {"retry": True,  "backoff": True},  # 重建 client 后重试
+    FailoverReason.server_error:     {"retry": True,  "backoff": True},
+    FailoverReason.overloaded:       {"retry": True,  "backoff": True},
+    FailoverReason.auth:             {"retry": True,  "backoff": False}, # 先刷新/轮换凭证
+    FailoverReason.auth_permanent:   {"retry": False, "backoff": False}, # 不可恢复，中止
+    FailoverReason.context_overflow: {"retry": True,  "backoff": False, "action": "compress"},
 }
 ```
 
@@ -174,41 +180,44 @@ Hermes Agent 通过多种方式实现反思能力：
 
 ```python
 # 工具结果分类 (agent/tool_result_classification.py)
-class ToolResultClassifier:
-    """对工具执行结果进行分类"""
-    
-    def classify(self, tool_name: str, result: str) -> str:
-        """分类工具结果"""
-        if self._is_success(result):
-            return "success"
-        elif self._is_partial(result):
-            return "partial"
-        elif self._is_error(result):
-            return "error"
-        else:
-            return "unknown"
-    
-    def needs_retry(self, classification: str) -> bool:
-        return classification in ("partial", "unknown")
+# 该模块没有 ToolResultClassifier 类，只有一个模块级函数（:12）：
+def file_mutation_result_landed(tool_name: str, result: Any) -> bool:
+    """判断某次文件写入/修改类工具调用的结果是否"落地"成功。
+
+    用于循环在文件变更后据此决定后续处理（例如反思/重试线索）。
+    """
+    ...
 ```
 
 ### 8.7.2 错误分类 (agent/error_classifier.py)
 
 ```python
-class ErrorClassifier:
-    """分类 API 错误并决定恢复策略"""
-    
-    def classify(self, error: Exception) -> FailoverReason:
-        if "rate_limit" in str(error).lower():
-            return FailoverReason.RATE_LIMIT
-        elif "context" in str(error).lower():
-            return FailoverReason.CONTEXT_OVERFLOW
-        elif "auth" in str(error).lower():
-            return FailoverReason.AUTH_ERROR
-        elif "timeout" in str(error).lower():
-            return FailoverReason.TIMEOUT
-        else:
-            return FailoverReason.UNKNOWN
+# agent/error_classifier.py 中没有 ErrorClassifier 类。真实结构是：
+#   - class FailoverReason(enum.Enum) (:24)  —— 失败原因枚举，成员全部小写
+#   - class ClassifiedError            (:70)  —— 分类结果（dataclass）
+#   - def classify_api_error(...)      (:441) —— 分类入口函数
+
+class FailoverReason(enum.Enum):
+    """为什么 API 调用失败 —— 决定恢复策略（成员均为小写）。"""
+    auth = "auth"                          # 瞬时鉴权失败 (401/403) — 刷新/轮换
+    auth_permanent = "auth_permanent"      # 刷新后仍失败 — 中止
+    billing = "billing"                    # 402 / 额度耗尽 — 立即轮换
+    rate_limit = "rate_limit"              # 429 / 限流 — 退避后轮换
+    overloaded = "overloaded"              # 503/529 — 供应商过载，退避
+    server_error = "server_error"          # 500/502 — 服务端错误，重试
+    timeout = "timeout"                    # 连接/读取超时 — 重建 client 后重试
+    context_overflow = "context_overflow"  # 上下文过大 — 压缩（而非 failover）
+    payload_too_large = "payload_too_large"  # 413 — 压缩载荷
+    image_too_large = "image_too_large"    # 单张图片超过供应商上限 — 缩小后重试
+    model_not_found = "model_not_found"    # 404 / 无效模型 — 回退到其他模型
+    content_policy_blocked = "content_policy_blocked"  # 安全过滤拒绝 — 不要原样重试
+    thinking_signature = "thinking_signature"  # Anthropic thinking 块签名无效
+    # ... 另有 format_error / unknown 等若干成员
+
+# 入口函数（而非类方法）
+def classify_api_error(...) -> ClassifiedError:
+    """检查异常 / 响应，返回带 FailoverReason 的 ClassifiedError。"""
+    ...
 ```
 
 ## 8.8 长任务机制
@@ -226,26 +235,24 @@ result = terminal(
 )
 ```
 
-### 8.8.2 检查点保存
+### 8.8.2 检查点（文件快照）
+
+`tools/checkpoint_manager.py` 的 `CheckpointManager` (:601) **不是**用来保存消息 / 迭代
+状态的，而是一个基于 **git 影子仓库（shadow repo）的文件检查点系统**：它用一个独立的
+bare git 仓库为工作目录中的文件拍快照，从而支持回滚工作区文件改动。它与会话消息历史无关。
+
+核心实现是一组模块级函数：
 
 ```python
-# checkpoint_manager.py
-class CheckpointManager:
-    def save_checkpoint(self, session_id: str):
-        """保存检查点"""
-        checkpoint = {
-            "session_id": session_id,
-            "messages": self.get_messages(),
-            "iteration": self.get_iteration(),
-            "timestamp": time.time(),
-        }
-        self.db.save_checkpoint(checkpoint)
-    
-    def restore(self, checkpoint_id: str):
-        """恢复到检查点"""
-        checkpoint = self.db.get_checkpoint(checkpoint_id)
-        self.set_messages(checkpoint["messages"])
-        self.set_iteration(checkpoint["iteration"])
+# tools/checkpoint_manager.py
+def _project_hash(working_dir: str) -> str: ...        # 由工作目录推导影子仓库标识 (:200)
+def _init_shadow_repo(shadow_repo: Path, working_dir: str) -> Optional[str]: ...  # 初始化 bare 影子仓库 (:574)
+def _run_git(...) -> ...: ...                          # 在影子仓库上执行 git 命令 (:297)
+def _validate_commit_hash(commit_hash: str) -> Optional[str]: ...  # 校验提交哈希 (:157)
+
+class CheckpointManager:  # (:601)
+    """通过 git 影子仓库对工作目录文件进行快照 / 回滚（非消息状态）。"""
+    ...
 ```
 
 ## 8.9 计划更新机制

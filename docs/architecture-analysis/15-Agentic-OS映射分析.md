@@ -151,7 +151,7 @@
 | **Framework** | Workflow Engine | `cron/`, `kanban/`, `delegate_tool.py` | 高级抽象 |
 | **Binder IPC** | Memory Bus | `SessionDB`, `memory_manager.py` | 跨进程通信 |
 | **HAL** | Tool/MCP Bus | `registry.py`, `mcp_tool.py` | 硬件抽象 |
-| **Kernel Driver** | AI Adapter | `*_adapter.py` | 设备驱动 |
+| **Kernel Driver** | AI Adapter | `agent/anthropic_adapter.py`, `agent/bedrock_adapter.py`, `agent/gemini_native_adapter.py` 等 | 设备驱动 |
 | **System Call** | Model API | OpenAI/Anthropic API | 系统调用 |
 | **Hardware** | Compute | GPU/Cloud | 物理资源 |
 
@@ -257,15 +257,17 @@ flowchart TB
 
 | 依赖项 | 层级 | 说明 |
 |-------|------|------|
-| **httpx** | 网络库 | HTTP 客户端 |
-| **OpenAI SDK** | AI HAL | OpenAI API 封装 |
-| **Anthropic SDK** | AI HAL | Anthropic API 封装 |
-| **SQLite** | Memory OS | 会话存储 |
+| **httpx** | 网络库 | HTTP 客户端（httpx[socks]==0.28.1） |
+| **OpenAI SDK** | AI HAL | OpenAI API 封装（核心，openai==2.24.0） |
+| **Anthropic SDK** | AI HAL | Anthropic API 封装（可选 extra，anthropic==0.87.0） |
+| **SQLite** | Memory OS | 会话存储（stdlib `sqlite3`） |
 | **prompt_toolkit** | UI | 命令行 UI |
 | **Rich** | UI | 富文本输出 |
-| **Docker SDK** | Container | Docker 集成 |
-| **asyncssh** | Infra | SSH 连接 |
-| **playwright** | Tool | 浏览器自动化 |
+| **websockets** | Tool | CDP 浏览器控制传输（websockets==15.0.1） |
+
+> 浏览器自动化**并非**依赖 `playwright`：通过 agent-browser CLI + Camofox，经 `websockets` 走 CDP 协议实现（`tools/browser_tool.py`、`tools/browser_cdp_tool.py`）。
+> SSH 后端**并非**依赖 `asyncssh`：`tools/environments/ssh.py` 通过 `subprocess` 调用系统 `ssh` CLI。
+> Docker 后端**并非**依赖 Docker SDK / docker-py：`tools/environments/docker.py` 通过 `subprocess` 调用系统 `docker` CLI。
 
 ## 21.6 缺失的 Agent OS 接口
 

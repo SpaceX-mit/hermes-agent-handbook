@@ -12,8 +12,8 @@ Runtime 负责管理 Agent 的运行时环境，包括：
 | **事件循环** | `conversation_loop.py` | 对话循环核心 |
 | **任务调度** | `cron/scheduler.py` | 定时任务 |
 | **并发机制** | `ThreadPoolExecutor` | 子 Agent 并行 |
-| **取消机制** | `interrupt.py` | 信号中断 |
-| **恢复机制** | `checkpoint_manager.py` | 检查点恢复 |
+| **取消机制** | `tools/interrupt.py` | 信号中断 |
+| **恢复机制** | `tools/checkpoint_manager.py` | 基于 git shadow repo 的文件检查点 |
 
 ## 6.2 运行时架构图
 
@@ -73,7 +73,11 @@ flowchart TB
 ## 6.3 上下文管理详解
 
 ```python
-# 上下文构建流程 (agent/turn_context.py)
+# 上下文构建流程（说明性伪代码）。真实入口为 agent/turn_context.py
+# 的 build_turn_context(:87)，但下列辅助函数分散在不同模块：
+#   - build_memory_context_block  → agent/memory_manager.py:297 (接收 raw_context)
+#   - build_context_files_prompt  → agent/prompt_builder.py:1841
+#   - build_skills_system_prompt  → agent/prompt_builder.py:1334
 def build_turn_context(agent, user_message: str) -> List[Dict]:
     messages = []
     
@@ -83,8 +87,8 @@ def build_turn_context(agent, user_message: str) -> List[Dict]:
         "content": agent._cached_system_prompt
     })
     
-    # 2. 记忆上下文
-    memory_block = build_memory_context_block(agent, user_message)
+    # 2. 记忆上下文（agent/memory_manager.py）
+    memory_block = build_memory_context_block(raw_context)
     if memory_block:
         messages.append({
             "role": "system", 
@@ -92,7 +96,7 @@ def build_turn_context(agent, user_message: str) -> List[Dict]:
             "name": "memory_context"
         })
     
-    # 3. 上下文文件
+    # 3. 上下文文件（agent/prompt_builder.py）
     context_files = build_context_files_prompt(agent)
     if context_files:
         messages.append({
@@ -101,7 +105,7 @@ def build_turn_context(agent, user_message: str) -> List[Dict]:
             "name": "context_files"
         })
     
-    # 4. 技能说明
+    # 4. 技能说明（agent/prompt_builder.py）
     skills_block = build_skills_system_prompt(agent)
     if skills_block:
         messages.append({
@@ -123,6 +127,8 @@ def build_turn_context(agent, user_message: str) -> List[Dict]:
 ```
 
 ## 6.4 Token 管理
+
+> 注：下面的 `TokenManager` 为概念抽象，非代码中的真实类。实际 Token 计数与上下文长度工具位于 `agent/model_metadata.py`，压缩判定逻辑在 `agent/context_compressor.py` / 对话循环中。
 
 ```python
 class TokenManager:
@@ -152,6 +158,8 @@ class TokenManager:
 ## 7.1 Harness 概念
 
 在 Hermes Agent 中，**Harness** 是管理 Agent 运行环境的抽象概念：
+
+> 重要：本节的 `Harness`、`PromptManager`、`ToolManager`、`ModelManager`、`SessionManager` 均为**概念抽象，非代码中的真实类**，仅用于说明职责划分。代码中真实存在的是：`MemoryManager`（`agent/memory_manager.py`）、工具注册表 `tools/registry.py`、provider 注册 `providers/__init__.py`、以及会话持久化 `SessionDB`（`hermes_state.py:667`，但并无包装它的 `SessionManager` 类）。
 
 ```python
 # Harness 的核心职责
@@ -355,6 +363,8 @@ class ModelManager:
 ```
 
 ## 7.6 Session 管理
+
+> 注：`SessionManager` 为概念抽象，非代码中的真实类。真实的会话持久化由 `SessionDB`（`hermes_state.py:667`）直接提供，并无包装类。
 
 ```python
 class SessionManager:

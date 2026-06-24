@@ -89,23 +89,35 @@ flowchart LR
 
 ```python
 class IterationBudget:
-    def __init__(self, max_iterations: int = 90):
-        self.max_iterations = max_iterations
-        self.remaining = max_iterations
-    
-    def consume(self, n=1) -> bool:
-        """消耗迭代次数，返回是否还有剩余"""
-        if self.remaining >= n:
-            self.remaining -= n
+    """每个 Agent（父或子）独立的线程安全迭代计数器。
+    上限由调用方传入（父 Agent 默认 90，子 Agent 默认 50），无默认参数。"""
+
+    def __init__(self, max_total: int):
+        self.max_total = max_total
+        self._used = 0
+        self._lock = threading.Lock()
+
+    def consume(self) -> bool:
+        """尝试消耗一次迭代，返回是否允许"""
+        with self._lock:
+            if self._used >= self.max_total:
+                return False
+            self._used += 1
             return True
-        return False
-    
-    def grace_call(self) -> bool:
-        """最后宽限一次调用"""
-        if self.remaining <= 0:
-            self.remaining = -1  # 允许一次
-            return True
-        return False
+
+    def refund(self) -> None:
+        """归还一次迭代（如 execute_code 编程式调用不计入预算）"""
+        with self._lock:
+            if self._used > 0:
+                self._used -= 1
+
+    @property
+    def used(self) -> int:
+        return self._used
+
+    @property
+    def remaining(self) -> int:
+        return max(0, self.max_total - self._used)
 ```
 
 ## 5.4 Sequence Diagram - 完整对话流程
@@ -200,29 +212,44 @@ flowchart TD
 ## 5.6 失败恢复机制
 
 ```python
+@dataclass
 class TurnRetryState:
-    """单轮重试状态"""
-    
-    def __init__(self):
-        self.attempt = 0
-        self.last_error: Optional[str] = None
-        self.fallback_reason: Optional[FailoverReason] = None
-    
-    def should_retry(self, max_retries=3) -> bool:
-        return self.attempt < max_retries
-    
-    def record_failure(self, error: str, reason: FailoverReason):
-        self.attempt += 1
-        self.last_error = error
-        self.fallback_reason = reason
+    """单次 API 调用尝试的一次性恢复守卫 + 重启信号。
+    每个外层回合迭代创建一个新实例；每个守卫最多触发一次恢复分支。
+    它由一组布尔标志构成，而非 attempt/last_error 计数。"""
 
-# 错误分类
-class FailoverReason(Enum):
-    RATE_LIMIT = "rate_limit"
-    CONTEXT_OVERFLOW = "context_overflow"
-    MODEL_ERROR = "model_error"
-    TIMEOUT = "timeout"
-    AUTH_ERROR = "auth_error"
+    # 各 provider 的 OAuth / 凭证刷新守卫（一次性）
+    codex_auth_retry_attempted: bool = False
+    anthropic_auth_retry_attempted: bool = False
+    nous_auth_retry_attempted: bool = False
+    copilot_auth_retry_attempted: bool = False
+    # 格式 / 负载恢复守卫
+    thinking_sig_retry_attempted: bool = False
+    image_shrink_retry_attempted: bool = False
+    # 传输 / 限流恢复
+    primary_recovery_attempted: bool = False
+    has_retried_429: bool = False
+    auth_failover_attempted: bool = False
+    # 重启信号（尝试后由外层循环读取）
+    restart_with_compressed_messages: bool = False
+    restart_with_length_continuation: bool = False
+
+# 错误分类（成员为小写，实际集合更大）
+class FailoverReason(enum.Enum):
+    auth = "auth"
+    auth_permanent = "auth_permanent"
+    billing = "billing"
+    rate_limit = "rate_limit"
+    overloaded = "overloaded"
+    server_error = "server_error"
+    timeout = "timeout"
+    context_overflow = "context_overflow"
+    payload_too_large = "payload_too_large"
+    image_too_large = "image_too_large"
+    model_not_found = "model_not_found"
+    content_policy_blocked = "content_policy_blocked"
+    thinking_signature = "thinking_signature"
+    # ... 还有 format_error、provider_policy_blocked 等更多成员
 ```
 
 ## 5.7 上下文压缩触发条件
