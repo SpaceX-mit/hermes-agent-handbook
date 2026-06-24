@@ -1,0 +1,467 @@
+# Hermes Agent 架构图集
+
+> 所有架构图以 Mermaid 格式保存，可用于文档、演示或代码生成。
+
+---
+
+## 1. 整体架构图
+
+```mermaid
+graph TB
+    subgraph "User Interface Layer"
+        CLI["CLI Interface<br/>(cli.py)"]
+        TUI["TUI Interface<br/>(ui-tui/)"]
+        GATEWAY["Messaging Gateway<br/>(gateway/run.py)"]
+        WEB["Web Dashboard<br/>(hermes_cli/web_server.py)"]
+        DESKTOP["Desktop App<br/>(apps/desktop/)"]
+    end
+
+    subgraph "Command & Session Layer"
+        COMMANDS["Slash Commands<br/>(hermes_cli/commands.py)"]
+        SESSION["Session Management<br/>(hermes_state.py)"]
+    end
+
+    subgraph "Agent Core Layer"
+        AIAgent["AIAgent<br/>(run_agent.py)"]
+        CONVERSATION["Conversation Loop<br/>(agent/conversation_loop.py)"]
+        PLANNER["Planner<br/>(implicit in LLM)"]
+        EXECUTOR["Executor<br/>(model_tools.py)"]
+    end
+
+    subgraph "Runtime Layer"
+        MEMORY["Memory Manager<br/>(agent/memory_manager.py)"]
+        CONTEXT["Context Manager<br/>(agent/turn_context.py)"]
+        COMPRESSOR["Context Compressor<br/>(agent/context_compressor.py)"]
+        BUDGET["Budget Controller<br/>(agent/iteration_budget.py)"]
+    end
+
+    subgraph "Tool Layer"
+        TERMINAL["Terminal Tool<br/>(tools/terminal_tool.py)"]
+        BROWSER["Browser Tool<br/>(tools/browser_tool.py)"]
+        FILE["File Operations<br/>(tools/file_tools.py)"]
+        DELEGATE["Delegate Tool<br/>(tools/delegate_tool.py)"]
+        MCP["MCP Tools<br/>(tools/mcp_tool.py)"]
+        SKILLS["Skills Hub<br/>(tools/skills_hub.py)"]
+        REGISTRY["Tool Registry<br/>(tools/registry.py)"]
+    end
+
+    subgraph "Provider Layer"
+        ANTHROPIC["Anthropic Adapter<br/>(agent/anthropic_adapter.py)"]
+        OPENAI["OpenAI Adapter<br/>(agent/chat_completion_helpers.py)"]
+        GEMINI["Gemini Adapter<br/>(agent/gemini_native_adapter.py)"]
+        BEDROCK["Bedrock Adapter<br/>(agent/bedrock_adapter.py)"]
+        CODEX["Codex Runtime<br/>(agent/codex_runtime.py)"]
+    end
+
+    subgraph "Memory & Storage Layer"
+        BUILTIN["Built-in Memory<br/>(tools/memory_tool.py)"]
+        HONCHO["Honcho Plugin<br/>(plugins/memory/honcho/)"]
+        MEM0["Mem0 Plugin<br/>(plugins/memory/mem0/)"]
+        SESSION_DB["Session DB<br/>(hermes_state.py)"]
+        FTS["FTS5 Search<br/>(hermes_state.py)"]
+    end
+
+    subgraph "Infrastructure Layer"
+        CONFIG["Config System<br/>(hermes_cli/config.py)"]
+        PLUGINS["Plugin System<br/>(plugins/)"]
+        CRON["Cron Scheduler<br/>(cron/)"]
+        KANBAN["Kanban Board<br/>(hermes_cli/kanban.py)"]
+    end
+
+    CLI --> COMMANDS
+    TUI --> COMMANDS
+    GATEWAY --> COMMANDS
+    
+    COMMANDS --> AIAgent
+    SESSION --> AIAgent
+    
+    AIAgent --> CONVERSATION
+    CONVERSATION --> PLANNER
+    CONVERSATION --> EXECUTOR
+    
+    AIAgent --> MEMORY
+    AIAgent --> CONTEXT
+    AIAgent --> COMPRESSOR
+    AIAgent --> BUDGET
+    
+    EXECUTOR --> REGISTRY
+    REGISTRY --> TERMINAL
+    REGISTRY --> BROWSER
+    REGISTRY --> FILE
+    REGISTRY --> DELEGATE
+    REGISTRY --> MCP
+    REGISTRY --> SKILLS
+    
+    CONVERSATION --> ANTHROPIC
+    CONVERSATION --> OPENAI
+    CONVERSATION --> GEMINI
+    CONVERSATION --> BEDROCK
+    
+    MEMORY --> BUILTIN
+    MEMORY --> HONCHO
+    MEMORY --> MEM0
+    
+    AIAgent --> SESSION_DB
+    SESSION_DB --> FTS
+```
+
+---
+
+## 2. 对话循环状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running : run_conversation()
+    Running --> WaitingForModel : LLM API 调用
+    WaitingForModel --> Running : 收到响应
+    Running --> ToolExecution : 检测到工具调用
+    ToolExecution --> Running : 工具执行完成
+    ToolExecution --> WaitingForModel : 继续 LLM 调用
+    Running --> Compressing : 上下文超限
+    Compressing --> Running : 压缩完成
+    Running --> Interrupted : Ctrl+C / /stop
+    Running --> Completed : 无更多输出
+    Completed --> Idle : 返回结果
+    Interrupted --> Idle : 清理
+    Error --> Idle : 记录错误
+```
+
+---
+
+## 3. Memory 层次架构
+
+```mermaid
+flowchart TB
+    subgraph "Working Memory"
+        WM["当前对话上下文"]
+        WM2["活跃技能和工具"]
+        WM3["Token 预算"]
+    end
+
+    subgraph "Short-term Memory"
+        STM["SessionDB 消息历史"]
+        STM2["FTS5 全文索引"]
+        STM3["Checkpoint 快照"]
+    end
+
+    subgraph "Long-term Memory"
+        LTM["用户配置 (USER.md)"]
+        LTM2["通用记忆 (MEMORY.md)"]
+        LTM3["技能定义"]
+        LTM4["外部提供者"]
+    end
+
+    WM <-->|压缩/扩展| STM
+    STM <-->|同步| LTM
+```
+
+---
+
+## 4. 工具调用流程
+
+```mermaid
+flowchart TD
+    A[LLM 响应] --> B{有 tool_calls?}
+    B -->|否| Z[返回文本]
+    B -->|是| C[解析工具调用]
+    
+    C --> D[验证工具名]
+    D --> E{工具存在?}
+    E -->|否| F[返回错误]
+    E -->|是| G[验证参数]
+    
+    G --> H{参数有效?}
+    H -->|否| I[返回参数错误]
+    H -->|是| J[检查环境]
+    
+    J --> K{环境满足?}
+    K -->|否| L[返回环境错误]
+    K -->|是| M[执行工具]
+    
+    M --> N{执行成功?}
+    N -->|是| O[返回结果]
+    N -->|否| P{可重试?}
+    P -->|是| M
+    P -->|否| Q[返回错误]
+```
+
+---
+
+## 5. 多 Agent 架构
+
+```mermaid
+graph TB
+    subgraph "Parent Agent"
+        PA["AIAgent Instance"]
+        PM["Task Manager"]
+        PC["Result Collector"]
+    end
+
+    subgraph "Child Agents"
+        CA1["Child Agent 1"]
+        CA2["Child Agent 2"]
+        CA3["Child Agent 3"]
+    end
+
+    subgraph "Shared Resources"
+        MEM["Memory Manager"]
+        DB["SessionDB"]
+        CFG["Config"]
+    end
+
+    PA --> PM
+    PM --> CA1
+    PM --> CA2
+    PM --> CA3
+    
+    CA1 --> MEM
+    CA2 --> MEM
+    CA3 --> MEM
+    
+    CA1 --> DB
+    CA2 --> DB
+    CA3 --> DB
+    
+    CA1 --> PC
+    CA2 --> PC
+    CA3 --> PC
+    PC --> PA
+```
+
+---
+
+## 6. Loop 流程图
+
+```mermaid
+flowchart TD
+    START[开始回合] --> LOAD[加载上下文]
+    LOAD --> BUILD[构建消息列表]
+    
+    BUILD --> ADD_SYS[添加系统提示]
+    ADD_SYS --> ADD_MEM[添加记忆上下文]
+    ADD_MEM --> ADD_MSG[添加历史消息]
+    ADD_MSG --> ADD_TOOLS[添加工具定义]
+    ADD_TOOLS --> CALL_LLM[调用 LLM]
+    
+    CALL_LLM --> RESP{收到响应}
+    
+    RESP -->|有工具调用| EXEC[执行工具]
+    EXEC --> BUILD_RES[构建结果消息]
+    BUILD_RES --> CHECK_BUDGET{预算检查}
+    CHECK_BUDGET -->|还有预算| ADD_MSG
+    CHECK_BUDGET -->|预算耗尽| RETRY{重试?}
+    RETRY -->|是| RETRY_LLM[使用更短重试]
+    RETRY_LLM --> CALL_LLM
+    RETRY -->|否| ERR[返回错误]
+    
+    RESP -->|无工具调用| FINAL[返回最终结果]
+    
+    FINAL --> POST[后置处理]
+    POST --> SYNC[同步记忆]
+    POST --> SAVE[保存会话]
+    POST --> COMPRESS{需要压缩?}
+    COMPRESS -->|是| COMPR[执行压缩]
+    COMPRESS -->|否| END
+    COMPR --> END
+    
+    END[回合结束] --> OUTPUT[返回响应]
+```
+
+---
+
+## 7. 数据流图
+
+```mermaid
+flowchart LR
+    subgraph "Input"
+        UI["User Input"]
+    end
+
+    subgraph "CLI/Gateway"
+        CMD["Command Parse"]
+        CTX["Context Build"]
+    end
+
+    subgraph "Agent Core"
+        AG["AIAgent"]
+        LOOP["ConversationLoop"]
+    end
+
+    subgraph "Memory"
+        PRE["Prefetch"]
+        SYNC["Sync"]
+    end
+
+    subgraph "Tool Layer"
+        REG["Registry"]
+        EXEC["Executor"]
+    end
+
+    subgraph "LLM"
+        API["API Call"]
+        RESP["Response"]
+    end
+
+    subgraph "Storage"
+        DB["SessionDB"]
+        FS["File System"]
+    end
+
+    UI --> CMD
+    CMD --> CTX
+    CTX --> AG
+    AG --> LOOP
+    
+    LOOP --> PRE
+    PRE --> MEM_BLOCK["Memory Context"]
+    LOOP --> REG
+    
+    REG --> EXEC
+    EXEC --> API
+    API --> RESP
+    
+    RESP --> LOOP
+    
+    LOOP --> SYNC
+    SYNC --> DB
+    SYNC --> MEM["Memory"]
+    
+    LOOP --> DB
+    
+    LOOP --> OUTPUT["Output"]
+```
+
+---
+
+## 8. 插件系统架构
+
+```mermaid
+flowchart TB
+    subgraph "Plugin System"
+        PM["PluginManager"]
+        DISCOVER["Discovery"]
+        LOAD["Loader"]
+    end
+
+    subgraph "Plugin Types"
+        MEM_P["Memory Plugin"]
+        MCP_P["MCP Plugin"]
+        PLAT_P["Platform Plugin"]
+        OTHER["Other Plugins"]
+    end
+
+    subgraph "Hooks"
+        H1["pre_tool_call"]
+        H2["post_tool_call"]
+        H3["on_session_start"]
+        H4["on_session_end"]
+    end
+
+    DISCOVER --> PM
+    LOAD --> PM
+    PM --> MEM_P
+    PM --> MCP_P
+    PM --> PLAT_P
+    PM --> OTHER
+    
+    PM --> H1
+    PM --> H2
+    PM --> H3
+    PM --> H4
+```
+
+---
+
+## 9. Harness 架构图
+
+```mermaid
+flowchart TB
+    subgraph "Harness"
+        H["Harness Container"]
+        
+        subgraph "Managed Resources"
+            P["Prompt Manager"]
+            T["Tool Manager"]
+            M["Memory Manager"]
+            MD["Model Manager"]
+            S["Session Manager"]
+        end
+        
+        subgraph "Agent Instance"
+            A["AIAgent"]
+            L["Conversation Loop"]
+        end
+    end
+    
+    H --> P
+    H --> T
+    H --> M
+    H --> MD
+    H --> S
+    
+    P --> A
+    T --> A
+    M --> A
+    MD --> A
+    S --> A
+    
+    A --> L
+```
+
+---
+
+## 10. 会话序列图
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as CLI/TUI
+    participant AG as AIAgent
+    participant LOOP as ConversationLoop
+    participant MEM as MemoryManager
+    participant TOOL as ToolRegistry
+    participant LLM as LLM Provider
+    participant DB as SessionDB
+
+    User->>CLI: 用户消息
+    CLI->>AG: run_conversation(message)
+    
+    Note over AG: 1. 前置准备
+    
+    AG->>MEM: prefetch_all(query)
+    MEM-->>AG: memory_context
+    AG->>LOOP: build_turn_context()
+    
+    Note over LOOP: 2. 构建消息列表
+    
+    LOOP->>DB: get_session_messages()
+    DB-->>LOOP: messages[]
+    LOOP->>LOOP: build_system_prompt()
+    LOOP->>LOOP: build_context_files()
+    
+    Note over LOOP: 3. LLM 调用循环
+    
+    LOOP->>LLM: chat.completions.create()
+    LLM-->>LOOP: response
+    
+    alt 有工具调用
+        LOOP->>LOOP: handle_tool_calls()
+        LOOP->>TOOL: handle_function_call()
+        TOOL->>TOOL: execute_tool()
+        TOOL-->>LOOP: result
+        LOOP->>LOOP: append result to messages
+        LOOP->>LOOP: 继续 LLM 调用
+    else 无工具调用
+        LOOP-->>AG: final_response
+    end
+    
+    Note over AG: 4. 后置处理
+    
+    AG->>MEM: sync_all(user, assistant)
+    AG->>MEM: queue_prefetch()
+    AG->>DB: save_messages()
+    
+    AG-->>CLI: result
+    CLI-->>User: 显示响应
+```
