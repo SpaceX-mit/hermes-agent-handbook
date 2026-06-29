@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 1640" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrowDown" markerWidth="12" markerHeight="12" refX="5" refY="9" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,0 L5,9 Z" fill="#0f172a"/>
+    </marker>
+    <style>
+      .title{font-size:30px;font-weight:700;fill:#0f172a}
+      .subtitle{font-size:14px;fill:#475569}
+      .pillarHd{font-size:15.5px;font-weight:700}
+      .ctl{font-size:12px;font-weight:600;fill:#0f172a}
+      .file{font-size:9.5px;fill:#64748b;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      .plane{font-size:14px;font-weight:700}
+      .note{font-size:11.5px;fill:#475569}
+      .spineTxt{font-size:15px;font-weight:700;fill:#fff}
+      .stage{font-size:13px;font-weight:700;fill:#fff}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1560" height="1640" fill="#f8fafc"/>
+
+  <text x="40" y="46" class="title">Agent (Hermes) · 安全产品骨架 / Security Product Skeleton</text>
+  <text x="40" y="72" class="subtitle">承重结构：信任主脊 + 6 大安全支柱 + 3 控制平面 + 请求生命周期 · 所有控制对应真实文件（见 17-安全功能分析.md）</text>
+
+  <!-- ===================== SPINE (trust principle backbone) ===================== -->
+  <rect x="40" y="92" width="1480" height="64" rx="10" fill="#0f172a"/>
+  <text x="60" y="124" class="spineTxt">主脊 / SPINE　唯一真正的安全边界 = 操作系统（OS Isolation）</text>
+  <text x="60" y="144" class="note" fill="#cbd5e1">SECURITY.md §2.2：进程内一切（审批/脱敏/扫描/白名单）= 启发式，防"协作模式事故"；OS 沙箱 = 边界，防"对抗性 LLM"。骨架的每根支柱都挂在这条主脊上。</text>
+
+  <!-- ===================== LIFECYCLE STAGES (horizontal flow, left rail) ===================== -->
+  <rect x="40" y="176" width="1480" height="58" rx="10" fill="#1e293b"/>
+  <text x="56" y="210" class="stage" fill="#94a3b8">生命周期</text>
+  <g>
+    <rect x="156" y="186" width="200" height="38" rx="8" fill="#4338ca"/>
+    <text x="256" y="210" text-anchor="middle" class="stage">① 接入 Ingest</text>
+    <rect x="372" y="186" width="200" height="38" rx="8" fill="#b45309"/>
+    <text x="472" y="210" text-anchor="middle" class="stage">② 授权 Authorize</text>
+    <rect x="588" y="186" width="200" height="38" rx="8" fill="#b91c1c"/>
+    <text x="688" y="210" text-anchor="middle" class="stage">③ 闸门 Gate</text>
+    <rect x="804" y="186" width="200" height="38" rx="8" fill="#047857"/>
+    <text x="904" y="210" text-anchor="middle" class="stage">④ 隔离 Isolate</text>
+    <rect x="1020" y="186" width="220" height="38" rx="8" fill="#0369a1"/>
+    <text x="1130" y="210" text-anchor="middle" class="stage">⑤ 凭证 Secrets</text>
+    <rect x="1256" y="186" width="248" height="38" rx="8" fill="#44403c"/>
+    <text x="1380" y="210" text-anchor="middle" class="stage">⑥ 观测 Observe</text>
+  </g>
+  <g stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" fill="none">
+    <line x1="356" y1="205" x2="370" y2="205"/>
+    <line x1="572" y1="205" x2="586" y2="205"/>
+    <line x1="788" y1="205" x2="802" y2="205"/>
+    <line x1="1004" y1="205" x2="1018" y2="205"/>
+    <line x1="1240" y1="205" x2="1254" y2="205"/>
+  </g>
+
+  <!-- ===================== 6 PILLARS ===================== -->
+  <!-- Pillar 1: Gateway Authz -->
+  <rect x="40" y="252" width="232" height="540" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6"/>
+  <rect x="40" y="252" width="232" height="50" rx="12" fill="#6366f1"/>
+  <text x="156" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱① 网关授权</text>
+  <text x="156" y="293" text-anchor="middle" class="file" fill="#e0e7ff">外部面 · fail-closed 边界</text>
+
+  <rect x="56" y="316" width="200" height="74" rx="7" fill="#fff" stroke="#818cf8"/>
+  <text x="156" y="338" text-anchor="middle" class="ctl">用户授权(默认拒绝)</text>
+  <text x="156" y="356" text-anchor="middle" class="file">authz_mixin.py:176</text>
+  <text x="156" y="372" text-anchor="middle" class="file">*_ALLOWED_USERS</text>
+  <text x="156" y="386" text-anchor="middle" class="file">多层校验</text>
+
+  <rect x="56" y="400" width="200" height="74" rx="7" fill="#fff" stroke="#818cf8"/>
+  <text x="156" y="422" text-anchor="middle" class="ctl">配对系统</text>
+  <text x="156" y="440" text-anchor="middle" class="file">pairing.py:204</text>
+  <text x="156" y="456" text-anchor="middle" class="file">SHA256+盐 · 1h TTL</text>
+  <text x="156" y="470" text-anchor="middle" class="file">限流 · 5次锁定</text>
+
+  <rect x="56" y="484" width="200" height="66" rx="7" fill="#fff" stroke="#818cf8"/>
+  <text x="156" y="506" text-anchor="middle" class="ctl">斜杠命令访问控制</text>
+  <text x="156" y="524" text-anchor="middle" class="file">slash_access.py:50</text>
+  <text x="156" y="540" text-anchor="middle" class="file">admin/user 分级</text>
+
+  <rect x="56" y="560" width="200" height="66" rx="7" fill="#fff" stroke="#818cf8"/>
+  <text x="156" y="582" text-anchor="middle" class="ctl">跨平台身份归一</text>
+  <text x="156" y="600" text-anchor="middle" class="file">whatsapp_identity.py:48</text>
+  <text x="156" y="616" text-anchor="middle" class="file">防路径穿越正则</text>
+
+  <rect x="56" y="636" width="200" height="140" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="156" y="658" text-anchor="middle" class="ctl">5 条外部面规则(§2.6)</text>
+  <text x="64" y="678" class="file">①跨边界即授权</text>
+  <text x="64" y="694" class="file">②每适配器需白名单</text>
+  <text x="64" y="710" class="file">  fail-closed</text>
+  <text x="64" y="726" class="file">③SessionID≠授权边界</text>
+  <text x="64" y="742" class="file">④集合内同等信任</text>
+  <text x="64" y="758" class="file">⑤非loopback=break-glass</text>
+
+  <!-- Pillar 2: Command Gate -->
+  <rect x="288" y="252" width="232" height="540" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+  <rect x="288" y="252" width="232" height="50" rx="12" fill="#ef4444"/>
+  <text x="404" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱② 命令执行闸</text>
+  <text x="404" y="293" text-anchor="middle" class="file" fill="#fee2e2">五层纵深 · 启发式</text>
+
+  <rect x="304" y="316" width="200" height="52" rx="7" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="404" y="336" text-anchor="middle" class="ctl">① Hardline（不可绕）</text>
+  <text x="404" y="354" text-anchor="middle" class="file">approval.py:333 · 12模式</text>
+
+  <rect x="304" y="376" width="200" height="52" rx="7" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="404" y="396" text-anchor="middle" class="ctl">② sudo stdin（不可绕）</text>
+  <text x="404" y="414" text-anchor="middle" class="file">approval.py:314</text>
+
+  <rect x="304" y="436" width="200" height="52" rx="7" fill="#fff" stroke="#f87171"/>
+  <text x="404" y="456" text-anchor="middle" class="ctl">③ Tirith 内容扫描</text>
+  <text x="404" y="474" text-anchor="middle" class="file">tirith_security.py:697</text>
+
+  <rect x="304" y="496" width="200" height="52" rx="7" fill="#fff" stroke="#f87171"/>
+  <text x="404" y="516" text-anchor="middle" class="ctl">④ 危险模式(47条)</text>
+  <text x="404" y="534" text-anchor="middle" class="file">approval.py:657 · NFKC归一</text>
+
+  <rect x="304" y="556" width="200" height="52" rx="7" fill="#fff" stroke="#f87171"/>
+  <text x="404" y="576" text-anchor="middle" class="ctl">⑤ 审批决策</text>
+  <text x="404" y="594" text-anchor="middle" class="file">Smart LLM/网关排队</text>
+
+  <rect x="304" y="616" width="200" height="74" rx="7" fill="#fff" stroke="#f87171"/>
+  <text x="404" y="638" text-anchor="middle" class="ctl">写审批门+注入扫描</text>
+  <text x="404" y="656" text-anchor="middle" class="file">write_approval.py:253</text>
+  <text x="404" y="672" text-anchor="middle" class="file">threat_patterns.py:187</text>
+  <text x="404" y="686" text-anchor="middle" class="file">28模式+隐形Unicode</text>
+
+  <rect x="304" y="700" width="200" height="76" rx="7" fill="#fef9c3" stroke="#ca8a04"/>
+  <text x="404" y="720" text-anchor="middle" class="ctl">⚡容器后端跳过整闸</text>
+  <text x="404" y="738" text-anchor="middle" class="file">已被沙箱隔离(支柱④)</text>
+  <text x="404" y="754" text-anchor="middle" class="file">Hardline/sudo 仅</text>
+  <text x="404" y="770" text-anchor="middle" class="file">对 local/ssh 生效</text>
+
+  <!-- Pillar 3: OS Isolation -->
+  <rect x="536" y="252" width="232" height="540" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2.4"/>
+  <rect x="536" y="252" width="232" height="50" rx="12" fill="#10b981"/>
+  <text x="652" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱③ 执行隔离★</text>
+  <text x="652" y="293" text-anchor="middle" class="file" fill="#d1fae5">唯一真正的边界</text>
+
+  <rect x="552" y="316" width="200" height="44" rx="7" fill="#fff" stroke="#f87171" stroke-width="2"/>
+  <text x="652" y="336" text-anchor="middle" class="ctl">Local（无隔离）</text>
+  <text x="652" y="352" text-anchor="middle" class="file">local.py:572 · 仅剥密钥</text>
+
+  <rect x="552" y="368" width="200" height="58" rx="7" fill="#fff" stroke="#34d399" stroke-width="2"/>
+  <text x="652" y="388" text-anchor="middle" class="ctl">Docker（推荐）</text>
+  <text x="652" y="404" text-anchor="middle" class="file">docker.py:503</text>
+  <text x="652" y="419" text-anchor="middle" class="file">cap-drop ALL·pids 256</text>
+
+  <rect x="552" y="434" width="200" height="48" rx="7" fill="#fff" stroke="#34d399"/>
+  <text x="652" y="454" text-anchor="middle" class="ctl">SSH（远程主机）</text>
+  <text x="652" y="470" text-anchor="middle" class="file">ssh.py:36 · 防符号链接</text>
+
+  <rect x="552" y="490" width="200" height="48" rx="7" fill="#fff" stroke="#34d399"/>
+  <text x="652" y="510" text-anchor="middle" class="ctl">Singularity（容器）</text>
+  <text x="652" y="526" text-anchor="middle" class="file">singularity.py:158</text>
+
+  <rect x="552" y="546" width="98" height="58" rx="7" fill="#fff" stroke="#34d399"/>
+  <text x="601" y="566" text-anchor="middle" class="ctl">Modal</text>
+  <text x="601" y="582" text-anchor="middle" class="file">modal.py</text>
+  <text x="601" y="596" text-anchor="middle" class="file">:164</text>
+
+  <rect x="654" y="546" width="98" height="58" rx="7" fill="#fff" stroke="#34d399"/>
+  <text x="703" y="566" text-anchor="middle" class="ctl">Daytona</text>
+  <text x="703" y="582" text-anchor="middle" class="file">daytona</text>
+  <text x="703" y="596" text-anchor="middle" class="file">.py:30</text>
+
+  <rect x="552" y="614" width="200" height="78" rx="7" fill="#d1fae5" stroke="#10b981"/>
+  <text x="652" y="634" text-anchor="middle" class="ctl">两种隔离姿态</text>
+  <text x="560" y="654" class="file">·终端后端隔离(shell/文件)</text>
+  <text x="560" y="670" class="file">·整进程包裹(Docker/</text>
+  <text x="560" y="685" class="file">  NVIDIA OpenShell)</text>
+
+  <rect x="552" y="700" width="200" height="76" rx="7" fill="#fff" stroke="#34d399"/>
+  <text x="652" y="720" text-anchor="middle" class="ctl">抽象基类</text>
+  <text x="652" y="738" text-anchor="middle" class="file">environments/base.py:287</text>
+  <text x="652" y="754" text-anchor="middle" class="file">BaseEnvironment</text>
+  <text x="652" y="770" text-anchor="middle" class="file">摄入不可信内容→必须包裹</text>
+
+  <!-- Pillar 4: FS & Web Safety -->
+  <rect x="784" y="252" width="232" height="540" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.6"/>
+  <rect x="784" y="252" width="232" height="50" rx="12" fill="#f59e0b"/>
+  <text x="900" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱④ 文件/网络</text>
+  <text x="900" y="293" text-anchor="middle" class="file" fill="#fef3c7">纵深防御(非边界)</text>
+
+  <rect x="800" y="316" width="200" height="64" rx="7" fill="#fff" stroke="#fbbf24"/>
+  <text x="900" y="338" text-anchor="middle" class="ctl">路径穿越防护</text>
+  <text x="900" y="356" text-anchor="middle" class="file">path_security.py:15</text>
+  <text x="900" y="372" text-anchor="middle" class="file">resolve()+relative_to()</text>
+
+  <rect x="800" y="388" width="200" height="76" rx="7" fill="#fff" stroke="#fbbf24"/>
+  <text x="900" y="410" text-anchor="middle" class="ctl">写/读黑名单</text>
+  <text x="900" y="428" text-anchor="middle" class="file">file_safety.py:91/148</text>
+  <text x="900" y="444" text-anchor="middle" class="file">写拒:SSH/.env/sudoers</text>
+  <text x="900" y="460" text-anchor="middle" class="file">读拦:auth.json/tokens</text>
+
+  <rect x="800" y="472" width="200" height="80" rx="7" fill="#fff" stroke="#fbbf24" stroke-width="2"/>
+  <text x="900" y="492" text-anchor="middle" class="ctl">SSRF 防护</text>
+  <text x="900" y="510" text-anchor="middle" class="file">url_safety.py:317</text>
+  <text x="900" y="526" text-anchor="middle" class="file">云元数据=强制底线</text>
+  <text x="900" y="542" text-anchor="middle" class="file">私网阻断·DNS失败拒绝</text>
+
+  <rect x="800" y="560" width="200" height="64" rx="7" fill="#fff" stroke="#fbbf24"/>
+  <text x="900" y="582" text-anchor="middle" class="ctl">网站黑名单</text>
+  <text x="900" y="600" text-anchor="middle" class="file">website_policy.py:232</text>
+  <text x="900" y="616" text-anchor="middle" class="file">精确/后缀/通配</text>
+
+  <rect x="800" y="632" width="200" height="64" rx="7" fill="#fff" stroke="#fbbf24"/>
+  <text x="900" y="654" text-anchor="middle" class="ctl">TLS 守卫</text>
+  <text x="900" y="672" text-anchor="middle" class="file">ssl_guard.py:61</text>
+  <text x="900" y="688" text-anchor="middle" class="file">启动校验 CA bundle</text>
+
+  <rect x="800" y="704" width="200" height="72" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="900" y="724" text-anchor="middle" class="ctl">⚠ 非边界声明</text>
+  <text x="808" y="744" class="file">terminal 可 cat 绕过读拦</text>
+  <text x="808" y="760" class="file">(file_safety.py:171-184)</text>
+  <text x="808" y="774" class="file">真边界仍是支柱③</text>
+
+  <!-- Pillar 5: Supply Chain & Extension Trust -->
+  <rect x="1032" y="252" width="232" height="540" rx="12" fill="#faf5ff" stroke="#a855f7" stroke-width="1.6"/>
+  <rect x="1032" y="252" width="232" height="50" rx="12" fill="#a855f7"/>
+  <text x="1148" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱⑤ 供应链/扩展</text>
+  <text x="1148" y="293" text-anchor="middle" class="file" fill="#f3e8ff">信任分级 · 人工审查=真边界</text>
+
+  <rect x="1048" y="316" width="200" height="82" rx="7" fill="#fff" stroke="#c084fc"/>
+  <text x="1148" y="338" text-anchor="middle" class="ctl">技能静态扫描(98模式)</text>
+  <text x="1148" y="356" text-anchor="middle" class="file">skills_guard.py:96</text>
+  <text x="1148" y="372" text-anchor="middle" class="file">裁决 danger/caution/safe</text>
+  <text x="1148" y="388" text-anchor="middle" class="file">信任级 builtin/trusted/comm</text>
+
+  <rect x="1048" y="406" width="200" height="76" rx="7" fill="#fff" stroke="#c084fc"/>
+  <text x="1148" y="428" text-anchor="middle" class="ctl">依赖恶意检测</text>
+  <text x="1148" y="446" text-anchor="middle" class="file">osv_check.py:26</text>
+  <text x="1148" y="462" text-anchor="middle" class="file">OSV MAL-* · stdio启动前</text>
+  <text x="1148" y="478" text-anchor="middle" class="file">mcp_tool.py:1776 阻 spawn</text>
+
+  <rect x="1048" y="490" width="200" height="76" rx="7" fill="#fff" stroke="#c084fc"/>
+  <text x="1148" y="512" text-anchor="middle" class="ctl">MCP 服务器信任</text>
+  <text x="1148" y="530" text-anchor="middle" class="file">mcp_security.py:121</text>
+  <text x="1148" y="546" text-anchor="middle" class="file">IOC+持久化形态</text>
+  <text x="1148" y="562" text-anchor="middle" class="file">保存拒写+加载跳过</text>
+
+  <rect x="1048" y="574" width="200" height="64" rx="7" fill="#fff" stroke="#c084fc"/>
+  <text x="1148" y="596" text-anchor="middle" class="ctl">工具 Schema 净化</text>
+  <text x="1148" y="614" text-anchor="middle" class="file">schema_sanitizer.py:46</text>
+  <text x="1148" y="630" text-anchor="middle" class="file">model_tools.py:525</text>
+
+  <rect x="1048" y="646" width="200" height="58" rx="7" fill="#fff" stroke="#c084fc"/>
+  <text x="1148" y="666" text-anchor="middle" class="ctl">环境变量注入防护</text>
+  <text x="1148" y="684" text-anchor="middle" class="file">config.py:181 denylist</text>
+  <text x="1148" y="698" text-anchor="middle" class="file">LD_PRELOAD/PYTHONPATH…</text>
+
+  <rect x="1048" y="712" width="200" height="64" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="1148" y="732" text-anchor="middle" class="ctl">真边界=人工审查(§2.5)</text>
+  <text x="1056" y="752" class="file">技能/插件 import 即执行</text>
+  <text x="1056" y="768" class="file">任意 Python → 装前读码</text>
+
+  <!-- Pillar 6: Secrets -->
+  <rect x="1280" y="252" width="240" height="540" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.6"/>
+  <rect x="1280" y="252" width="240" height="50" rx="12" fill="#0ea5e9"/>
+  <text x="1400" y="276" text-anchor="middle" class="pillarHd" fill="#fff">支柱⑥ 密钥凭证</text>
+  <text x="1400" y="293" text-anchor="middle" class="file" fill="#e0f2fe">横切 · 含进程内租户边界</text>
+
+  <rect x="1296" y="316" width="208" height="82" rx="7" fill="#fff" stroke="#38bdf8"/>
+  <text x="1400" y="338" text-anchor="middle" class="ctl">输出脱敏(48模式)</text>
+  <text x="1400" y="356" text-anchor="middle" class="file">redact.py:208</text>
+  <text x="1400" y="372" text-anchor="middle" class="file">日志formatter:513</text>
+  <text x="1400" y="388" text-anchor="middle" class="file">发LLM前/工具输出</text>
+
+  <rect x="1296" y="406" width="208" height="86" rx="7" fill="#fff" stroke="#38bdf8" stroke-width="2"/>
+  <text x="1400" y="428" text-anchor="middle" class="ctl">密钥作用域隔离</text>
+  <text x="1400" y="446" text-anchor="middle" class="file">secret_scope.py:123</text>
+  <text x="1400" y="462" text-anchor="middle" class="file">多租户 fail-closed</text>
+  <text x="1400" y="478" text-anchor="middle" class="file">UnscopedSecretError</text>
+
+  <rect x="1296" y="500" width="208" height="82" rx="7" fill="#fff" stroke="#38bdf8"/>
+  <text x="1400" y="522" text-anchor="middle" class="ctl">借入凭证落盘清洗</text>
+  <text x="1400" y="540" text-anchor="middle" class="file">credential_persistence</text>
+  <text x="1400" y="556" text-anchor="middle" class="file">.py:151 · SHA256指纹</text>
+  <text x="1400" y="572" text-anchor="middle" class="file">仅自有OAuth可落原文</text>
+
+  <rect x="1296" y="590" width="208" height="84" rx="7" fill="#fff" stroke="#38bdf8"/>
+  <text x="1400" y="612" text-anchor="middle" class="ctl">OAuth 令牌管理</text>
+  <text x="1400" y="630" text-anchor="middle" class="file">mcp_oauth_manager.py</text>
+  <text x="1400" y="646" text-anchor="middle" class="file">磁盘mtime监测·401去重</text>
+  <text x="1400" y="662" text-anchor="middle" class="file">单用token防复用·0o600</text>
+
+  <rect x="1296" y="682" width="208" height="94" rx="7" fill="#e0f2fe" stroke="#0ea5e9"/>
+  <text x="1400" y="704" text-anchor="middle" class="ctl">凭证作用域(§2.3)</text>
+  <text x="1304" y="724" class="file">向低信任组件剥离环境:</text>
+  <text x="1304" y="740" class="file">shell/MCP/cron/code-exec</text>
+  <text x="1304" y="756" class="file">默认剥 provider key/token</text>
+  <text x="1304" y="772" class="file">非边界:同进程组件可读</text>
+
+  <!-- ===================== 3 CONTROL PLANES (bottom cross-cutting) ===================== -->
+  <text x="40" y="828" class="plane" fill="#0f172a">控制平面 / Control Planes（横切全部支柱）</text>
+
+  <rect x="40" y="844" width="480" height="150" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <rect x="40" y="844" width="480" height="38" rx="12" fill="#475569"/>
+  <text x="60" y="869" class="plane" fill="#fff">A. 策略/配置平面 Policy</text>
+  <text x="56" y="906" class="note">声明式策略源——决定每根支柱"开多紧"：</text>
+  <text x="56" y="928" class="file">config.yaml: approvals.mode (manual/smart/off) · security.*</text>
+  <text x="56" y="948" class="file">env: HERMES_REDACT_SECRETS · HERMES_ALLOW_PRIVATE_URLS</text>
+  <text x="56" y="968" class="file">      HERMES_WRITE_SAFE_ROOT · HERMES_SKIP_SSL_GUARD · YOLO</text>
+  <text x="56" y="988" class="file">command_allowlist · website_blocklist · 信任级映射</text>
+
+  <rect x="536" y="844" width="480" height="150" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <rect x="536" y="844" width="480" height="38" rx="12" fill="#475569"/>
+  <text x="556" y="869" class="plane" fill="#fff">B. 执行/强制平面 Enforce</text>
+  <text x="552" y="906" class="note">策略落地的单一总闸 + 强制点：</text>
+  <text x="552" y="928" class="file">terminal_tool.py:2088 → approval.py:1470 (命令总闸)</text>
+  <text x="552" y="948" class="file">file_tools 写/读前 · web_tools/browser_tool 取前</text>
+  <text x="552" y="968" class="file">gateway/run.py 每轮 _profile_runtime_scope (租户隔离)</text>
+  <text x="552" y="988" class="file">fail-closed 关键面 / fail-open 容错面 取舍清晰</text>
+
+  <rect x="1032" y="844" width="488" height="150" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <rect x="1032" y="844" width="488" height="38" rx="12" fill="#475569"/>
+  <text x="1052" y="869" class="plane" fill="#fff">C. 审计/可观测平面 Observe</text>
+  <text x="1048" y="906" class="note">告警、漏洞扫描、成本熔断（成本即安全）：</text>
+  <text x="1048" y="928" class="file">security_advisories.py (启动横幅·投毒名单)</text>
+  <text x="1048" y="948" class="file">security_audit_startup.py (root/无认证监听告警)</text>
+  <text x="1048" y="968" class="file">security_audit.py (OSV venv/插件/MCP 审计)</text>
+  <text x="1048" y="988" class="file">nous_rate_guard.py:189 (跨会话配额熔断)</text>
+
+  <!-- ===================== DESIGN INVARIANTS ===================== -->
+  <rect x="40" y="1014" width="1480" height="216" rx="12" fill="#0f172a"/>
+  <text x="60" y="1046" class="plane" fill="#f1f5f9">骨架不变量 / Skeleton Invariants（产品级安全契约）</text>
+  <text x="60" y="1078" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#86efac">不变量1 单一边界</tspan>　进程内控制永不宣称是边界；唯一边界是 OS 隔离(支柱③)。诚实标注 = 降低误用。</text>
+  <text x="60" y="1106" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#fca5a5">不变量2 不可绕底线</tspan>　Hardline + sudo 守卫在任何模式(YOLO/off/cron)下都拦截，是骨架的"脊柱保护"。</text>
+  <text x="60" y="1134" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#7dd3fc">不变量3 关键面 fail-closed</tspan>　网关无白名单拒派发 · 多租户无 scope 抛异常 · SSRF DNS 失败拒绝 · 云元数据强制阻断。</text>
+  <text x="60" y="1162" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#fcd34d">不变量4 容错面 fail-open</tspan>　Tirith/OSV/website_policy 出错放行——有其他支柱兜底，可用性不崩塌。</text>
+  <text x="60" y="1190" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#d8b4fe">不变量5 信任分级+人工审查</tspan>　技能/MCP 按来源分级；扩展的真边界是操作员"装前读码"，非任何扫描器。</text>
+  <text x="60" y="1218" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#cbd5e1">范围(§3)</tspan>　In: 逃离声明的OS姿态/未授权外部面/应阻止的凭证外泄。Out: 绕过进程内启发式/单纯提示注入/所选姿态后果/社区扩展。</text>
+
+  <text x="40" y="1264" class="note" fill="#94a3b8">配套：openclaw-security-panorama.svg（OpenClaw 安全全景）· security-panorama.svg（Hermes 威胁→控制全景）· 17-安全功能分析.md（逐项 file:line）</text>
+  <text x="40" y="1286" class="note" fill="#94a3b8">读法：6 根支柱垂直挂在 OS 主脊上，沿生命周期①→⑥ 横向推进；3 控制平面横切所有支柱；底部 5 条不变量是产品级安全契约。等宽字体=真实文件:行号。</text>
+</svg>

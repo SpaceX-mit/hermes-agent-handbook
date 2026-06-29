@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1860" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrowDown" markerWidth="12" markerHeight="12" refX="5" refY="9" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,0 L5,9 Z" fill="#7c2d12"/>
+    </marker>
+    <style>
+      .title{font-size:31px;font-weight:700;fill:#0f172a}
+      .subtitle{font-size:14px;fill:#475569}
+      .layerName{font-size:20px;font-weight:700}
+      .layerTag{font-size:12.5px;font-weight:600;opacity:.85}
+      .box{rx:7;stroke-width:1.2}
+      .boxT{font-size:13px;font-weight:650;fill:#0f172a}
+      .boxF{font-size:10px;fill:#475569;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      .boxThreat{font-size:10.5px;fill:#b91c1c;font-style:italic}
+      .grpName{font-size:14px;font-weight:700;fill:#1e293b}
+      .note{font-size:12px;fill:#475569}
+      .flowLbl{font-size:12px;font-weight:600;fill:#7c2d12}
+      .badge{font-size:10px;font-weight:700}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1640" height="1860" fill="#f8fafc"/>
+
+  <text x="40" y="46" class="title">OpenClaw · 产品级安全全景图 (Security Panorama)</text>
+  <text x="40" y="72" class="subtitle">威胁 → 控制 分层映射 · 配置驱动安全模型 · 每个控制标注 OpenClaw 真实配置键 / 目录</text>
+
+  <!-- Provenance + legend -->
+  <rect x="1106" y="28" width="494" height="58" rx="8" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="1122" y="48" class="badge" fill="#c2410c">⚠ 逆向重建：本仓库无 OpenClaw 源码</text>
+  <text x="1122" y="64" class="boxF" fill="#7c2d12">证据=迁移脚本 openclaw_to_hermes.py（读 OpenClaw 全量配置）</text>
+  <text x="1122" y="78" class="boxF" fill="#7c2d12">+ "Ported from openclaw/openclaw#NNNNN" → Hermes 是其 Python 演进</text>
+
+  <rect x="40" y="92" width="1560" height="40" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <rect x="56" y="102" width="18" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="82" y="113" class="badge" fill="#15803d">真实边界 BOUNDARY</text>
+  <rect x="246" y="102" width="18" height="14" rx="3" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.4" stroke-dasharray="4 2"/>
+  <text x="272" y="113" class="badge" fill="#a16207">配置级控制 CONFIG（启发式，可调强弱）</text>
+  <text x="600" y="113" class="badge" fill="#475569">斜体红字 = 该层抵御的威胁　·　等宽字体 = OpenClaw 真实配置键 openclaw.json / 目录</text>
+
+  <!-- ATTACK SURFACES -->
+  <rect x="40" y="146" width="1560" height="64" rx="10" fill="#1e293b"/>
+  <text x="60" y="172" class="layerName" fill="#f1f5f9">威胁来源 / Attack Surfaces</text>
+  <g fill="#e2e8f0" font-size="12">
+    <text x="330" y="176">不可信 IM 用户</text><text x="330" y="194">channels (TG/Discord/…)</text>
+    <text x="520" y="176">对抗性 LLM 输出</text><text x="520" y="194">prompt injection</text>
+    <text x="700" y="176">恶意网页/邮件</text><text x="700" y="194">摄入的不可信内容</text>
+    <text x="890" y="176">恶意技能/MCP</text><text x="890" y="194">skills · mcp_servers</text>
+    <text x="1080" y="176">投毒依赖</text><text x="1080" y="194">npm/PyPI 供应链</text>
+    <text x="1270" y="176">凭证窃取</text><text x="1270" y="194">SecretRef/.env/token</text>
+  </g>
+  <line x1="820" y1="210" x2="820" y2="240" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+
+  <!-- LAYER 1: Channel Authz -->
+  <rect x="40" y="246" width="1560" height="158" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6"/>
+  <text x="60" y="274" class="layerName" fill="#4338ca">① 渠道授权层 / Channel Authorization</text>
+  <text x="60" y="294" class="layerTag" fill="#6366f1">config: channels · gateway.auth · bindings — 单网关托管全部消息平台</text>
+  <rect x="1410" y="258" width="170" height="22" rx="11" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="1495" y="273" text-anchor="middle" class="badge" fill="#15803d">外部面 = 真实边界</text>
+  <text x="60" y="314" class="boxThreat">威胁：未授权 IM 用户操控 Agent · 网关未认证暴露 · 身份伪造</text>
+
+  <rect x="60" y="326" width="360" height="66" class="box" fill="#fff" stroke="#6366f1" stroke-width="2"/>
+  <text x="240" y="348" text-anchor="middle" class="boxT">每渠道用户白名单</text>
+  <text x="240" y="366" text-anchor="middle" class="boxF">TELEGRAM/DISCORD/SLACK/</text>
+  <text x="240" y="382" text-anchor="middle" class="boxF">WHATSAPP/SIGNAL _ALLOWED_USERS</text>
+
+  <rect x="436" y="326" width="360" height="66" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="616" y="348" text-anchor="middle" class="boxT">网关认证 token</text>
+  <text x="616" y="366" text-anchor="middle" class="boxF">gateway.auth.token · port</text>
+  <text x="616" y="382" text-anchor="middle" class="boxF">openclaw-gateway.service (systemd)</text>
+
+  <rect x="812" y="326" width="360" height="66" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="992" y="348" text-anchor="middle" class="boxT">绑定 / 群组配置</text>
+  <text x="992" y="366" text-anchor="middle" class="boxF">config: bindings</text>
+  <text x="992" y="382" text-anchor="middle" class="boxF">channels.* group configs</text>
+
+  <rect x="1188" y="326" width="384" height="66" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="1380" y="348" text-anchor="middle" class="boxT">Hooks / Webhooks</text>
+  <text x="1380" y="366" text-anchor="middle" class="boxF">config: hooks (internal/webhook/gmail)</text>
+  <text x="1380" y="382" text-anchor="middle" class="boxF">入站事件认证面</text>
+
+  <line x1="820" y1="404" x2="820" y2="434" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+  <text x="832" y="424" class="flowLbl">已授权请求进入 Agent 运行时（config: agents）</text>
+
+  <!-- LAYER 2: Approval / Exec Gate -->
+  <rect x="40" y="440" width="1560" height="214" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="60" y="468" class="layerName" fill="#b91c1c">② 命令审批闸 / Approval &amp; Exec Gate</text>
+  <text x="60" y="488" class="layerTag" fill="#ef4444">config: approvals.exec.mode + exec-approvals.json + command-allowlist</text>
+  <rect x="1380" y="452" width="200" height="22" rx="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.4" stroke-dasharray="4 2"/>
+  <text x="1480" y="467" text-anchor="middle" class="badge" fill="#a16207">配置驱动启发式</text>
+  <text x="60" y="508" class="boxThreat">威胁：危险 shell 命令 · 提权 · 破坏性操作 · 未经审批的工具调用</text>
+
+  <rect x="60" y="520" width="290" height="120" class="box" fill="#fff" stroke="#f87171" stroke-width="2"/>
+  <text x="205" y="542" text-anchor="middle" class="boxT">审批模式 approvals.exec.mode</text>
+  <text x="205" y="562" text-anchor="middle" class="boxF">四档（迁移脚本:2740 实证）：</text>
+  <text x="80" y="582" class="boxF">· auto   → 自动放行（≈off）</text>
+  <text x="80" y="600" class="boxF">· always → 每次人工审批</text>
+  <text x="80" y="618" class="boxF">· smart  → 智能判定</text>
+  <text x="80" y="634" class="boxF">· manual → 手动审批</text>
+
+  <rect x="366" y="520" width="290" height="120" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="511" y="542" text-anchor="middle" class="boxT">命令审批白名单</text>
+  <text x="511" y="562" text-anchor="middle" class="boxF">exec-approvals.json</text>
+  <text x="511" y="580" text-anchor="middle" class="boxF">approvals.rules</text>
+  <text x="511" y="600" text-anchor="middle" class="boxF">已批准模式持久化</text>
+  <text x="511" y="620" text-anchor="middle" class="boxF">(迁移→Hermes command_allowlist)</text>
+
+  <rect x="672" y="520" width="290" height="120" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="817" y="542" text-anchor="middle" class="boxT">exec 工具配置</text>
+  <text x="817" y="562" text-anchor="middle" class="boxF">tools.exec.timeoutSec</text>
+  <text x="817" y="580" text-anchor="middle" class="boxF">tools.web.search 限制</text>
+  <text x="817" y="600" text-anchor="middle" class="boxF">超时 = 失控命令的兜底</text>
+  <text x="817" y="620" text-anchor="middle" class="boxF">(迁移:2355 实证)</text>
+
+  <rect x="978" y="520" width="290" height="120" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="1123" y="542" text-anchor="middle" class="boxT">思考/推理深度</text>
+  <text x="1123" y="562" text-anchor="middle" class="boxF">agents.defaults.thinking</text>
+  <text x="1123" y="580" text-anchor="middle" class="boxF">reasoning_effort</text>
+  <text x="1123" y="600" text-anchor="middle" class="boxF">compaction / context 管理</text>
+  <text x="1123" y="620" text-anchor="middle" class="boxF">间接影响工具滥用面</text>
+
+  <rect x="1284" y="520" width="288" height="120" class="box" fill="#fef9c3" stroke="#ca8a04"/>
+  <text x="1428" y="542" text-anchor="middle" class="boxT">⚠ 对比 Hermes</text>
+  <text x="1296" y="562" class="boxF">OpenClaw 审批=模式+规则配置；</text>
+  <text x="1296" y="580" class="boxF">Hermes 在此基础上加了不可绕</text>
+  <text x="1296" y="598" class="boxF">的 Hardline/sudo 守卫 + Tirith</text>
+  <text x="1296" y="616" class="boxF">外部扫描（OpenClaw 无对应证据）</text>
+
+  <line x1="820" y1="654" x2="820" y2="684" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+  <text x="832" y="674" class="flowLbl">通过审批 → 在沙箱后端中执行（config: tools.sandbox）</text>
+
+  <!-- LAYER 3: Sandbox Isolation -->
+  <rect x="40" y="690" width="1560" height="170" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2.4"/>
+  <text x="60" y="718" class="layerName" fill="#047857">③ 执行隔离 / 沙箱 — 真正的边界 (The Boundary)</text>
+  <text x="60" y="738" class="layerTag" fill="#10b981">config: agents.defaults.sandbox.backend (docker) + sandbox.docker.image（迁移:2360 实证）</text>
+  <rect x="1360" y="702" width="220" height="22" rx="11" fill="#16a34a"/>
+  <text x="1470" y="717" text-anchor="middle" class="badge" fill="#fff">★ 对抗性威胁在此被约束</text>
+  <text x="60" y="758" class="boxThreat">威胁：LLM 越权执行的代码逃逸到宿主文件系统 / 网络</text>
+
+  <rect x="60" y="770" width="360" height="76" class="box" fill="#fff" stroke="#34d399" stroke-width="2"/>
+  <text x="240" y="792" text-anchor="middle" class="boxT">Docker 沙箱后端</text>
+  <text x="240" y="810" text-anchor="middle" class="boxF">sandbox.backend = "docker"</text>
+  <text x="240" y="828" text-anchor="middle" class="boxF">sandbox.docker.image</text>
+  <text x="240" y="844" text-anchor="middle" class="boxF">容器隔离执行</text>
+
+  <rect x="436" y="770" width="360" height="76" class="box" fill="#fff" stroke="#f87171" stroke-width="2"/>
+  <text x="616" y="792" text-anchor="middle" class="boxT">无沙箱（默认本地）</text>
+  <rect x="500" y="800" width="232" height="16" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="616" y="812" text-anchor="middle" class="badge" fill="#b91c1c">直接跑宿主·无边界</text>
+  <text x="616" y="832" text-anchor="middle" class="boxF">sandbox 未配 docker 时</text>
+
+  <rect x="812" y="770" width="360" height="76" class="box" fill="#fff" stroke="#34d399"/>
+  <text x="992" y="792" text-anchor="middle" class="boxT">工作区边界</text>
+  <text x="992" y="810" text-anchor="middle" class="boxF">~/.openclaw/workspace/</text>
+  <text x="992" y="828" text-anchor="middle" class="boxF">(workspace-main/ 新版)</text>
+  <text x="992" y="844" text-anchor="middle" class="boxF">agents.defaults.workspace</text>
+
+  <rect x="1188" y="770" width="384" height="76" class="box" fill="#d1fae5" stroke="#10b981"/>
+  <text x="1380" y="792" text-anchor="middle" class="boxT">★ 同 Hermes 原则</text>
+  <text x="1200" y="812" class="boxF">真正的边界是 OS/容器隔离；</text>
+  <text x="1200" y="830" class="boxF">配置级审批/白名单是启发式。</text>
+  <text x="1200" y="846" class="boxF">摄入不可信内容→须开 docker 沙箱</text>
+
+  <!-- CROSS-CUTTING: Secrets (left) + Supply chain (right) -->
+  <rect x="40" y="876" width="770" height="320" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.6"/>
+  <text x="60" y="904" class="layerName" fill="#0369a1">④ 密钥与凭证 / Secrets &amp; Credentials</text>
+  <text x="60" y="924" class="layerTag" fill="#0ea5e9">config: env · SecretRef 引用模型 · provider apiKey</text>
+  <text x="60" y="944" class="boxThreat">威胁：密钥明文落配置 · token 泄漏 · provider key 暴露</text>
+
+  <rect x="60" y="956" width="360" height="106" class="box" fill="#fff" stroke="#38bdf8" stroke-width="2"/>
+  <text x="240" y="978" text-anchor="middle" class="boxT">SecretRef 引用（不内联）</text>
+  <text x="240" y="996" text-anchor="middle" class="boxF">{"source":"env","id":"..."}</text>
+  <text x="240" y="1014" text-anchor="middle" class="boxF">迁移脚本:326-332 实证</text>
+  <text x="240" y="1032" text-anchor="middle" class="boxF">密钥经环境变量引用解析</text>
+  <text x="240" y="1050" text-anchor="middle" class="boxF">而非写死在 openclaw.json</text>
+
+  <rect x="430" y="956" width="360" height="106" class="box" fill="#fff" stroke="#38bdf8"/>
+  <text x="610" y="978" text-anchor="middle" class="boxT">Provider / 渠道密钥</text>
+  <text x="610" y="996" text-anchor="middle" class="boxF">providers.*.apiKey</text>
+  <text x="610" y="1014" text-anchor="middle" class="boxF">*_BOT_TOKEN · SIGNAL_ACCOUNT</text>
+  <text x="610" y="1032" text-anchor="middle" class="boxF">custom_providers.headers</text>
+  <text x="610" y="1050" text-anchor="middle" class="boxF">tools.web.search.brave.apiKey</text>
+
+  <rect x="60" y="1074" width="730" height="106" class="box" fill="#e0f2fe" stroke="#0ea5e9"/>
+  <text x="425" y="1096" text-anchor="middle" class="boxT">⚠ 对比 Hermes（迁移时被"借入源"清洗印证差异）</text>
+  <text x="76" y="1118" class="boxF">迁移脚本对 OpenClaw 配置做密钥红action（_is_secret_key:609 / _SECRET_KEY_MARKERS:582）——</text>
+  <text x="76" y="1138" class="boxF">说明 OpenClaw 配置里密钥以可识别键名存在（accessToken/clientSecret/refreshToken/apiKey…）。</text>
+  <text x="76" y="1158" class="boxF">Hermes 额外提供：输出脱敏 redact.py、多租户 fail-closed secret_scope、落盘 SHA256 指纹化——</text>
+  <text x="76" y="1176" class="boxF">这些在 OpenClaw 中无直接证据（迁移时归档/红action 处理，留待人工审查）。</text>
+
+  <rect x="830" y="876" width="770" height="320" rx="12" fill="#faf5ff" stroke="#a855f7" stroke-width="1.6"/>
+  <text x="850" y="904" class="layerName" fill="#7e22ce">⑤ 供应链 &amp; 扩展信任 / Supply Chain &amp; Extension</text>
+  <text x="850" y="924" class="layerTag" fill="#a855f7">config: skills.entries · mcp / mcp_servers · plugins</text>
+  <text x="850" y="944" class="boxThreat">威胁：恶意技能代码 · 不可信 MCP 服务器 · 投毒依赖 · 恶意插件</text>
+
+  <rect x="850" y="956" width="360" height="106" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1030" y="978" text-anchor="middle" class="boxT">技能注册表</text>
+  <text x="1030" y="996" text-anchor="middle" class="boxF">config: skills.entries</text>
+  <text x="1030" y="1014" text-anchor="middle" class="boxF">每技能 enabled/config/env</text>
+  <text x="1030" y="1032" text-anchor="middle" class="boxF">~/.openclaw/skills/ · SKILL.md</text>
+  <text x="1030" y="1050" text-anchor="middle" class="boxF">agentskills.io 标准</text>
+
+  <rect x="1220" y="956" width="360" height="106" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1400" y="978" text-anchor="middle" class="boxT">MCP / 插件</text>
+  <text x="1400" y="996" text-anchor="middle" class="boxF">config: mcp / mcp_servers</text>
+  <text x="1400" y="1014" text-anchor="middle" class="boxF">config: plugins (installed ext)</text>
+  <text x="1400" y="1032" text-anchor="middle" class="boxF">command + args + env</text>
+  <text x="1400" y="1050" text-anchor="middle" class="boxF">npx/uvx 启动外部服务</text>
+
+  <rect x="850" y="1074" width="730" height="106" class="box" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="1215" y="1096" text-anchor="middle" class="boxT">⚠ 对比 Hermes（hermes-0day 防护是 Hermes 后加的）</text>
+  <text x="866" y="1118" class="boxF">Hermes 针对 MCP 配置加了 mcp_security.py（IOC 黑名单含 "hermes-0day" 攻击源 IP + 持久化形态检测）、</text>
+  <text x="866" y="1138" class="boxF">osv_check.py（OSV MAL-* 依赖扫描）、skills_guard.py（98 模式 + 信任分级）。这些命名/IOC 表明是针对</text>
+  <text x="866" y="1158" class="boxF">OpenClaw 时代攻击事件的加固。OpenClaw 侧：技能/MCP 经配置启用，真边界同样是<tspan font-weight="700">操作员人工审查</tspan>。</text>
+
+  <!-- AUDIT / STATE -->
+  <rect x="40" y="1212" width="1560" height="150" rx="12" fill="#f5f5f4" stroke="#78716c" stroke-width="1.6"/>
+  <text x="60" y="1240" class="layerName" fill="#44403c">⑥ 状态 · 日志 · 诊断 / State &amp; Logging</text>
+  <text x="60" y="1260" class="layerTag" fill="#78716c">config: logging · diagnostics · session — ~/.openclaw/ 状态目录</text>
+
+  <rect x="60" y="1272" width="360" height="76" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="240" y="1294" text-anchor="middle" class="boxT">会话/日志存储</text>
+  <text x="240" y="1312" text-anchor="middle" class="boxF">~/.openclaw/sessions/ · logs/</text>
+  <text x="240" y="1330" text-anchor="middle" class="boxF">config: session.session_reset</text>
+  <text x="240" y="1346" text-anchor="middle" class="boxF">daily / idle 重置</text>
+
+  <rect x="436" y="1272" width="360" height="76" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="616" y="1294" text-anchor="middle" class="boxT">日志 / 诊断</text>
+  <text x="616" y="1312" text-anchor="middle" class="boxF">config: logging · diagnostics</text>
+  <text x="616" y="1330" text-anchor="middle" class="boxF">verbose / verboseDefault</text>
+  <text x="616" y="1346" text-anchor="middle" class="boxF">运行可观测</text>
+
+  <rect x="812" y="1272" width="360" height="76" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="992" y="1294" text-anchor="middle" class="boxT">记忆后端</text>
+  <text x="992" y="1312" text-anchor="middle" class="boxF">config: memory</text>
+  <text x="992" y="1330" text-anchor="middle" class="boxF">QMD · vector search · citations</text>
+  <text x="992" y="1346" text-anchor="middle" class="boxF">~/.openclaw/memory/</text>
+
+  <rect x="1188" y="1272" width="384" height="76" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="1380" y="1294" text-anchor="middle" class="boxT">UI / 身份</text>
+  <text x="1380" y="1312" text-anchor="middle" class="boxF">config: ui (theme)</text>
+  <text x="1380" y="1330" text-anchor="middle" class="boxF">assistant identity</text>
+  <text x="1380" y="1346" text-anchor="middle" class="boxF">display preferences</text>
+
+  <!-- COMPARISON / CONCLUSION -->
+  <rect x="40" y="1378" width="1560" height="316" rx="12" fill="#0f172a"/>
+  <text x="60" y="1410" class="grpName" font-size="17" fill="#f1f5f9">OpenClaw vs Hermes 安全态势对比（基于代码证据）</text>
+
+  <text x="60" y="1442" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#86efac">共同骨架</tspan>：渠道授权（*_ALLOWED_USERS + gateway.auth）→ 审批闸（approvals.mode）→ 沙箱隔离（docker）→ 密钥(SecretRef)/技能/MCP/插件信任。配置驱动，单网关多渠道。</text>
+  <text x="60" y="1470" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#86efac">同一边界哲学</tspan>：真正的安全边界是容器/OS 隔离；审批模式与白名单是配置级启发式。摄入不可信内容应启用 docker 沙箱。</text>
+
+  <text x="60" y="1504" class="note" fill="#cbd5e1"><tspan font-weight="700" fill="#fca5a5">Hermes 相对 OpenClaw 的安全增强（均有代码证据）</tspan>：</text>
+  <text x="76" y="1528" class="note" fill="#cbd5e1">· <tspan font-weight="700">命令闸</tspan>：新增不可绕 Hardline(12模式)+sudo 守卫，外部 Tirith AST 扫描，NFKC 反混淆归一（OpenClaw 仅 mode+rules）</text>
+  <text x="76" y="1550" class="note" fill="#cbd5e1">· <tspan font-weight="700">供应链</tspan>：mcp_security.py 含 "hermes-0day" IOC + 持久化形态检测、osv_check OSV 扫描、skills_guard 98 模式信任分级</text>
+  <text x="76" y="1572" class="note" fill="#cbd5e1">· <tspan font-weight="700">密钥</tspan>：输出脱敏 redact、多租户 fail-closed secret_scope、落盘 SHA256 指纹化、SSRF 云元数据强制阻断</text>
+  <text x="76" y="1594" class="note" fill="#cbd5e1">· <tspan font-weight="700">观测</tspan>：security_advisories 启动横幅(投毒名单)、security_audit_startup 姿态告警(root/无认证监听)、跨会话配额熔断</text>
+
+  <text x="60" y="1628" class="note" fill="#94a3b8" font-size="11.5">命名("hermes-0day")与"Ported from openclaw#NNNNN"溯源共同表明：Hermes 在 fork OpenClaw 后，针对 OpenClaw 时代暴露的攻击事件做了系统性安全加固。</text>
+  <text x="60" y="1652" class="note" fill="#94a3b8" font-size="11.5">局限：OpenClaw 的函数/类级实现因无源码无法标注；本图方框=迁移代码读取的真实配置键/目录（已 grep 校验）。如需精确到文件/类，请提供 openclaw/openclaw 源码。</text>
+  <text x="60" y="1676" class="note" fill="#94a3b8" font-size="11.5">配套：hermes-security-skeleton.svg（Hermes 安全产品骨架）· security-panorama.svg（Hermes 威胁→控制全景）· 17-安全功能分析.md</text>
+
+  <text x="40" y="1730" class="note" fill="#94a3b8">读法：威胁源①→⑥ 自顶向下；绿框=真实边界(容器/OS)，黄虚线框=配置级启发式控制；底部为 OpenClaw↔Hermes 代码证据对比。</text>
+  <text x="40" y="1752" class="note" fill="#94a3b8">证据来源：optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py（3136 行）逐项读取 OpenClaw 配置 schema。</text>
+</svg>
