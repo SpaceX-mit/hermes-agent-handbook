@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 2120" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrowDown" markerWidth="12" markerHeight="12" refX="5" refY="9" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,0 L5,9 Z" fill="#7c2d12"/>
+    </marker>
+    <style>
+      .title{font-size:31px;font-weight:700;fill:#0f172a}
+      .subtitle{font-size:14.5px;fill:#475569}
+      .layerName{font-size:20px;font-weight:700}
+      .layerTag{font-size:12.5px;font-weight:600;opacity:.85}
+      .box{rx:7;stroke-width:1.2}
+      .boxT{font-size:13px;font-weight:650;fill:#0f172a}
+      .boxF{font-size:10px;fill:#475569;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+      .boxThreat{font-size:10.5px;fill:#b91c1c;font-style:italic}
+      .grpName{font-size:14px;font-weight:700;fill:#1e293b}
+      .note{font-size:12px;fill:#475569}
+      .flowLbl{font-size:12px;font-weight:600;fill:#7c2d12}
+      .badge{font-size:10px;font-weight:700}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1640" height="2120" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="40" y="46" class="title">Hermes Agent · 产品级安全全景图 (Security Panorama)</text>
+  <text x="40" y="72" class="subtitle">威胁 → 控制 分层映射 · 每个控制标注真实实现文件 file:line · 核心原则：唯一真正的安全边界是操作系统（SECURITY.md §2.2）</text>
+
+  <!-- Boundary vs Heuristic legend strip -->
+  <rect x="1130" y="30" width="470" height="52" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <rect x="1146" y="44" width="20" height="14" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="1174" y="55" class="badge" fill="#15803d">真实边界 BOUNDARY</text>
+  <rect x="1146" y="62" width="20" height="14" rx="3" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.4" stroke-dasharray="4 2"/>
+  <text x="1174" y="73" class="badge" fill="#a16207">进程内启发式 HEURISTIC（防事故，非防对抗）</text>
+  <rect x="1372" y="44" width="20" height="14" rx="3" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="1400" y="55" class="badge" fill="#b91c1c">不可绕过 HARDLINE</text>
+  <text x="1372" y="73" class="badge" fill="#475569">斜体红字 = 该层抵御的威胁</text>
+
+  <!-- ============ ATTACKER SOURCES (top) ============ -->
+  <rect x="40" y="96" width="1560" height="70" rx="10" fill="#1e293b"/>
+  <text x="60" y="122" class="layerName" fill="#f1f5f9">威胁来源 / Attack Surfaces</text>
+  <g fill="#e2e8f0" font-size="12.5">
+    <text x="300" y="126">不可信 IM 用户</text>
+    <text x="300" y="146">(Telegram/Discord/…)</text>
+    <text x="470" y="126">对抗性 LLM 输出</text>
+    <text x="470" y="146">(prompt injection)</text>
+    <text x="650" y="126">恶意网页 / 邮件</text>
+    <text x="650" y="146">(摄入的不可信内容)</text>
+    <text x="840" y="126">恶意技能 / MCP</text>
+    <text x="840" y="146">(第三方扩展)</text>
+    <text x="1010" y="126">投毒依赖</text>
+    <text x="1010" y="146">(PyPI/npm 供应链)</text>
+    <text x="1180" y="126">SSRF / 凭证窃取</text>
+    <text x="1180" y="146">(云元数据/密钥)</text>
+    <text x="1380" y="126">配额滥用</text>
+    <text x="1380" y="146">(成本/重试放大)</text>
+  </g>
+
+  <line x1="820" y1="166" x2="820" y2="196" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+
+  <!-- ============ LAYER 1: GATEWAY AUTHZ (external boundary) ============ -->
+  <rect x="40" y="202" width="1560" height="180" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="1.6"/>
+  <text x="60" y="230" class="layerName" fill="#4338ca">① 网关授权层 / Gateway Authorization</text>
+  <text x="60" y="250" class="layerTag" fill="#6366f1">多租户外部面 — fail-closed：无白名单即拒绝派发（SECURITY.md §2.6 规则②）</text>
+  <rect x="1410" y="214" width="170" height="22" rx="11" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="1495" y="229" text-anchor="middle" class="badge" fill="#15803d">外部面 = 真实边界</text>
+  <text x="60" y="270" class="boxThreat">威胁：未授权用户操控 Agent · 身份伪造 · 越权运行命令</text>
+
+  <rect x="60"  y="282" width="290" height="86" class="box" fill="#fff" stroke="#6366f1" stroke-width="2"/>
+  <text x="205" y="304" text-anchor="middle" class="boxT">用户授权（默认拒绝）</text>
+  <text x="205" y="322" text-anchor="middle" class="boxF">gateway/authz_mixin.py:176</text>
+  <text x="205" y="338" text-anchor="middle" class="boxF">_is_user_authorized() 多层校验</text>
+  <text x="205" y="356" text-anchor="middle" class="boxF">*_ALLOWED_USERS · GATEWAY_ALLOWED_USERS</text>
+
+  <rect x="368" y="282" width="290" height="86" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="513" y="304" text-anchor="middle" class="boxT">配对系统（动态授权）</text>
+  <text x="513" y="322" text-anchor="middle" class="boxF">gateway/pairing.py:204</text>
+  <text x="513" y="338" text-anchor="middle" class="boxF">8位 secrets 码 · SHA256+盐 · 明文不落盘</text>
+  <text x="513" y="356" text-anchor="middle" class="boxF">1h TTL · 限流 · 5次失败锁1h · 常量比对</text>
+
+  <rect x="676" y="282" width="290" height="86" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="821" y="304" text-anchor="middle" class="boxT">斜杠命令访问控制</text>
+  <text x="821" y="322" text-anchor="middle" class="boxF">gateway/slash_access.py:50</text>
+  <text x="821" y="338" text-anchor="middle" class="boxF">allow_admin_from / user_allowed_commands</text>
+  <text x="821" y="356" text-anchor="middle" class="boxF">永久底线 {help, whoami}</text>
+
+  <rect x="984" y="282" width="290" height="86" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="1129" y="304" text-anchor="middle" class="boxT">跨平台身份归一</text>
+  <text x="1129" y="322" text-anchor="middle" class="boxF">gateway/whatsapp_identity.py:48</text>
+  <text x="1129" y="338" text-anchor="middle" class="boxF">JID 归一 · 别名图遍历</text>
+  <text x="1129" y="356" text-anchor="middle" class="boxF">_SAFE_IDENTIFIER_RE 防路径穿越</text>
+
+  <rect x="1292" y="282" width="288" height="86" class="box" fill="#fff" stroke="#818cf8"/>
+  <text x="1436" y="304" text-anchor="middle" class="boxT">姿态审计（启动告警）</text>
+  <text x="1436" y="322" text-anchor="middle" class="boxF">hermes_cli/security_audit_startup.py</text>
+  <text x="1436" y="338" text-anchor="middle" class="boxF">root运行 · SSH密码认证 · 无认证监听</text>
+  <text x="1436" y="356" text-anchor="middle" class="boxF">仅告警不阻断 · 永不抛异常</text>
+
+  <line x1="820" y1="382" x2="820" y2="412" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+  <text x="832" y="402" class="flowLbl">已授权请求进入 Agent 运行时</text>
+
+  <!-- ============ LAYER 2: COMMAND EXECUTION GATE ============ -->
+  <rect x="40" y="418" width="1560" height="300" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="60" y="446" class="layerName" fill="#b91c1c">② 命令执行总闸 / Command Execution Gate</text>
+  <text x="60" y="466" class="layerTag" fill="#ef4444">入口 terminal_tool.py:2088 → approval.py:1470 check_all_command_guards() · 五层纵深</text>
+  <rect x="1380" y="430" width="200" height="22" rx="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.4" stroke-dasharray="4 2"/>
+  <text x="1480" y="445" text-anchor="middle" class="badge" fill="#a16207">启发式（含不可绕底线）</text>
+  <text x="60" y="486" class="boxThreat">威胁：rm -rf / 关机 / fork bomb · 提权 · RCE · DB 破坏 · 命令混淆绕过</text>
+
+  <!-- ordered gate chain -->
+  <rect x="60" y="498" width="232" height="92" class="box" fill="#fee2e2" stroke="#dc2626" stroke-width="2.2"/>
+  <text x="176" y="520" text-anchor="middle" class="boxT">① Hardline 阻断</text>
+  <rect x="80" y="528" width="64" height="17" rx="8" fill="#dc2626"/>
+  <text x="112" y="540" text-anchor="middle" class="badge" fill="#fff">不可绕过</text>
+  <text x="176" y="560" text-anchor="middle" class="boxF">approval.py:333 (12模式)</text>
+  <text x="176" y="575" text-anchor="middle" class="boxF">rm -rf / · mkfs · shutdown</text>
+  <text x="176" y="588" text-anchor="middle" class="boxF">连 YOLO/off 都拦</text>
+
+  <rect x="304" y="498" width="232" height="92" class="box" fill="#fee2e2" stroke="#dc2626" stroke-width="2.2"/>
+  <text x="420" y="520" text-anchor="middle" class="boxT">② sudo stdin 守卫</text>
+  <rect x="324" y="528" width="64" height="17" rx="8" fill="#dc2626"/>
+  <text x="356" y="540" text-anchor="middle" class="badge" fill="#fff">不可绕过</text>
+  <text x="420" y="560" text-anchor="middle" class="boxF">approval.py:314</text>
+  <text x="420" y="575" text-anchor="middle" class="boxF">sudo -S 密码爆破</text>
+  <text x="420" y="588" text-anchor="middle" class="boxF">无 SUDO_PASSWORD 即阻</text>
+
+  <rect x="548" y="498" width="232" height="92" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="664" y="520" text-anchor="middle" class="boxT">③ Tirith 内容扫描</text>
+  <text x="664" y="540" text-anchor="middle" class="boxF">tirith_security.py:697</text>
+  <text x="664" y="556" text-anchor="middle" class="boxF">外部 Rust · AST 级分析</text>
+  <text x="664" y="572" text-anchor="middle" class="boxF">homograph/注入/管道喂解释器</text>
+  <text x="664" y="586" text-anchor="middle" class="boxF">fail-open · SHA256+cosign 验</text>
+
+  <rect x="792" y="498" width="232" height="92" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="908" y="520" text-anchor="middle" class="boxT">④ 危险模式检测</text>
+  <text x="908" y="540" text-anchor="middle" class="boxF">approval.py:657 (47模式)</text>
+  <text x="908" y="556" text-anchor="middle" class="boxF">反混淆归一:559</text>
+  <text x="908" y="572" text-anchor="middle" class="boxF">NFKC/去ANSI/去转义/路径回写</text>
+  <text x="908" y="586" text-anchor="middle" class="boxF">可审批 once/session/always</text>
+
+  <rect x="1036" y="498" width="232" height="92" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="1152" y="520" text-anchor="middle" class="boxT">⑤ 审批决策</text>
+  <text x="1152" y="540" text-anchor="middle" class="boxF">Smart LLM :1136 (抗注入)</text>
+  <text x="1152" y="556" text-anchor="middle" class="boxF">网关排队 :1352 阻塞等待</text>
+  <text x="1152" y="572" text-anchor="middle" class="boxF">/approve · /deny</text>
+  <text x="1152" y="586" text-anchor="middle" class="boxF">timeout 300s</text>
+
+  <rect x="1280" y="498" width="300" height="92" class="box" fill="#fff" stroke="#f87171"/>
+  <text x="1430" y="520" text-anchor="middle" class="boxT">写审批门 + 上下文注入扫描</text>
+  <text x="1430" y="540" text-anchor="middle" class="boxF">write_approval.py:253 evaluate_gate</text>
+  <text x="1430" y="556" text-anchor="middle" class="boxF">threat_patterns.py:187 (28模式)</text>
+  <text x="1430" y="572" text-anchor="middle" class="boxF">隐形Unicode检测 · C2/promptware</text>
+  <text x="1430" y="586" text-anchor="middle" class="boxF">MEMORY.md/SKILL.md 写入暂存</text>
+
+  <!-- gate ordering arrows -->
+  <g stroke="#dc2626" stroke-width="1.5" marker-end="url(#arrow)" fill="none">
+    <line x1="292" y1="544" x2="302" y2="544"/>
+    <line x1="536" y1="544" x2="546" y2="544"/>
+    <line x1="780" y1="544" x2="790" y2="544"/>
+    <line x1="1024" y1="544" x2="1034" y2="544"/>
+  </g>
+
+  <!-- container skip note -->
+  <rect x="60" y="606" width="1520" height="32" rx="6" fill="#fef9c3" stroke="#fde047"/>
+  <text x="74" y="627" class="note" fill="#854d0e">⚡ 容器化后端（docker/singularity/modal/daytona）<tspan font-weight="700">跳过整个命令闸</tspan>——因为已被 OS 沙箱隔离（见第④层），无需进程内启发式兜底。Hardline/sudo 守卫仅对可伤宿主的后端（local/ssh/容器宿主 cron）生效。</text>
+
+  <!-- exec-code parallel note -->
+  <rect x="60" y="648" width="1520" height="30" rx="6" fill="#fff" stroke="#fecaca"/>
+  <text x="74" y="668" class="note">代码执行工具走平行闸 approval.py:1770 check_execute_code_guard（整脚本一次性审批）；workdir 校验 _WORKDIR_SAFE_RE (terminal_tool.py:270)。</text>
+
+  <line x1="820" y1="718" x2="820" y2="748" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+  <text x="832" y="738" class="flowLbl">通过审批 → 工具实际读写文件 / 访问网络</text>
+
+  <!-- ============ LAYER 3: FS & WEB SAFETY ============ -->
+  <rect x="40" y="754" width="1560" height="218" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.6"/>
+  <text x="60" y="782" class="layerName" fill="#b45309">③ 文件系统 &amp; 网络安全 / Filesystem &amp; Network Safety</text>
+  <text x="60" y="802" class="layerTag" fill="#f59e0b">纵深防御（非边界）— terminal 仍可 cat 绕过；含强制底线（云元数据不可关）</text>
+  <text x="60" y="822" class="boxThreat">威胁：路径穿越 · 越界写凭证文件 · 读密钥库 · SSRF/云元数据 · TLS 降级</text>
+
+  <rect x="60" y="834" width="290" height="120" class="box" fill="#fff" stroke="#fbbf24"/>
+  <text x="205" y="856" text-anchor="middle" class="boxT">路径穿越防护</text>
+  <text x="205" y="874" text-anchor="middle" class="boxF">tools/path_security.py:15</text>
+  <text x="205" y="890" text-anchor="middle" class="boxF">validate_within_dir()</text>
+  <text x="205" y="906" text-anchor="middle" class="boxF">双向 resolve()+relative_to()</text>
+  <text x="205" y="924" text-anchor="middle" class="boxF">has_traversal_component():37</text>
+  <text x="205" y="944" text-anchor="middle" class="boxF">用于 cron/skills/credential</text>
+
+  <rect x="368" y="834" width="290" height="120" class="box" fill="#fff" stroke="#fbbf24"/>
+  <text x="513" y="856" text-anchor="middle" class="boxT">写/读黑名单</text>
+  <text x="513" y="874" text-anchor="middle" class="boxF">agent/file_safety.py:91/148</text>
+  <text x="513" y="890" text-anchor="middle" class="boxF">写拒绝:SSH密钥/.env/sudoers</text>
+  <text x="513" y="906" text-anchor="middle" class="boxF">读拦截:auth.json/mcp-tokens</text>
+  <text x="513" y="922" text-anchor="middle" class="boxF">跨profile/沙箱镜像软警告</text>
+  <text x="513" y="942" text-anchor="middle" class="boxF">cfg: HERMES_WRITE_SAFE_ROOT</text>
+
+  <rect x="676" y="834" width="290" height="120" class="box" fill="#fff" stroke="#fbbf24" stroke-width="2"/>
+  <text x="821" y="856" text-anchor="middle" class="boxT">SSRF 防护</text>
+  <text x="821" y="874" text-anchor="middle" class="boxF">tools/url_safety.py:317</text>
+  <rect x="700" y="882" width="160" height="16" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="780" y="894" text-anchor="middle" class="badge" fill="#15803d">云元数据=强制底线</text>
+  <text x="821" y="912" text-anchor="middle" class="boxF">169.254.169.254 等不可关</text>
+  <text x="821" y="928" text-anchor="middle" class="boxF">私网/CGNAT 默认阻 · DNS失败拒绝</text>
+  <text x="821" y="946" text-anchor="middle" class="boxF">cfg: HERMES_ALLOW_PRIVATE_URLS</text>
+
+  <rect x="984" y="834" width="290" height="120" class="box" fill="#fff" stroke="#fbbf24"/>
+  <text x="1129" y="856" text-anchor="middle" class="boxT">网站黑名单</text>
+  <text x="1129" y="874" text-anchor="middle" class="boxF">tools/website_policy.py:232</text>
+  <text x="1129" y="890" text-anchor="middle" class="boxF">check_website_access()</text>
+  <text x="1129" y="906" text-anchor="middle" class="boxF">精确/后缀/通配 *.x.com</text>
+  <text x="1129" y="922" text-anchor="middle" class="boxF">30s 缓存 · 配置错误 fail-open</text>
+  <text x="1129" y="942" text-anchor="middle" class="boxF">cfg: security.website_blocklist</text>
+
+  <rect x="1292" y="834" width="288" height="120" class="box" fill="#fff" stroke="#fbbf24"/>
+  <text x="1436" y="856" text-anchor="middle" class="boxT">TLS 守卫</text>
+  <text x="1436" y="874" text-anchor="middle" class="boxF">agent/ssl_guard.py:61</text>
+  <text x="1436" y="890" text-anchor="middle" class="boxF">verify_ca_bundle()</text>
+  <text x="1436" y="906" text-anchor="middle" class="boxF">校验 CA 存在/可加载/含证书</text>
+  <text x="1436" y="922" text-anchor="middle" class="boxF">启动时 agent_init.py:919</text>
+  <text x="1436" y="942" text-anchor="middle" class="boxF">cfg: HERMES_SKIP_SSL_GUARD</text>
+
+  <line x1="820" y1="972" x2="820" y2="1002" stroke="#7c2d12" stroke-width="2.5" marker-end="url(#arrowDown)"/>
+  <text x="832" y="992" class="flowLbl">最终在隔离环境中执行（唯一真正的边界）</text>
+
+  <!-- ============ LAYER 4: OS ISOLATION (THE boundary) ============ -->
+  <rect x="40" y="1008" width="1560" height="226" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2.4"/>
+  <text x="60" y="1036" class="layerName" fill="#047857">④ 执行隔离 / 沙箱 — 唯一真正的安全边界 (THE Boundary)</text>
+  <text x="60" y="1056" class="layerTag" fill="#10b981">SECURITY.md §2.2：对抗性 LLM 的唯一防线是 OS。基类 tools/environments/base.py:287</text>
+  <rect x="1340" y="1020" width="240" height="22" rx="11" fill="#16a34a"/>
+  <text x="1460" y="1035" text-anchor="middle" class="badge" fill="#fff">★ 对抗性威胁在此被真正约束</text>
+  <text x="60" y="1076" class="boxThreat">威胁：LLM 越权执行的代码逃逸到宿主文件系统 / 网络 / 其他容器</text>
+
+  <rect x="60" y="1088" width="244" height="128" class="box" fill="#fff" stroke="#f87171" stroke-width="2"/>
+  <text x="182" y="1110" text-anchor="middle" class="boxT">Local（无隔离）</text>
+  <rect x="120" y="1118" width="124" height="17" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="182" y="1130" text-anchor="middle" class="badge" fill="#b91c1c">直接跑宿主·无边界</text>
+  <text x="182" y="1150" text-anchor="middle" class="boxF">environments/local.py:572</text>
+  <text x="182" y="1166" text-anchor="middle" class="boxF">仅剥离 Hermes 密钥环境变量</text>
+  <text x="182" y="1182" text-anchor="middle" class="boxF">_sanitize_subprocess_env:208</text>
+  <text x="182" y="1200" text-anchor="middle" class="boxF">AWS 凭证刻意保留(§3.2)</text>
+
+  <rect x="316" y="1088" width="244" height="128" class="box" fill="#fff" stroke="#34d399" stroke-width="2"/>
+  <text x="438" y="1110" text-anchor="middle" class="boxT">Docker（容器）</text>
+  <rect x="376" y="1118" width="124" height="17" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="438" y="1130" text-anchor="middle" class="badge" fill="#15803d">推荐隔离</text>
+  <text x="438" y="1150" text-anchor="middle" class="boxF">environments/docker.py:503</text>
+  <text x="438" y="1166" text-anchor="middle" class="boxF">--cap-drop ALL · no-new-privs</text>
+  <text x="438" y="1182" text-anchor="middle" class="boxF">--pids-limit 256 · tmpfs nosuid</text>
+  <text x="438" y="1200" text-anchor="middle" class="boxF">--network=none(可选)·孤儿回收</text>
+
+  <rect x="572" y="1088" width="244" height="128" class="box" fill="#fff" stroke="#34d399"/>
+  <text x="694" y="1110" text-anchor="middle" class="boxT">SSH（远程主机）</text>
+  <text x="694" y="1132" text-anchor="middle" class="boxF">environments/ssh.py:36</text>
+  <text x="694" y="1150" text-anchor="middle" class="boxF">ControlMaster 复用</text>
+  <text x="694" y="1168" text-anchor="middle" class="boxF">文件同步 relpath 校验</text>
+  <text x="694" y="1188" text-anchor="middle" class="boxF">防符号链接逃逸 :225</text>
+
+  <rect x="828" y="1088" width="244" height="128" class="box" fill="#fff" stroke="#34d399"/>
+  <text x="950" y="1110" text-anchor="middle" class="boxT">Singularity（容器）</text>
+  <text x="950" y="1132" text-anchor="middle" class="boxF">environments/singularity.py:158</text>
+  <text x="950" y="1150" text-anchor="middle" class="boxF">--containall</text>
+  <text x="950" y="1168" text-anchor="middle" class="boxF">--no-home</text>
+  <text x="950" y="1188" text-anchor="middle" class="boxF">overlay / tmpfs</text>
+
+  <rect x="1084" y="1088" width="244" height="128" class="box" fill="#fff" stroke="#34d399"/>
+  <text x="1206" y="1110" text-anchor="middle" class="boxT">Modal（云沙箱）</text>
+  <rect x="1144" y="1118" width="124" height="17" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="1206" y="1130" text-anchor="middle" class="badge" fill="#15803d">网络+宿主隔离</text>
+  <text x="1206" y="1150" text-anchor="middle" class="boxF">environments/modal.py:164</text>
+  <text x="1206" y="1168" text-anchor="middle" class="boxF">Serverless 沙箱</text>
+  <text x="1206" y="1188" text-anchor="middle" class="boxF">快照持久化</text>
+
+  <rect x="1340" y="1088" width="240" height="128" class="box" fill="#fff" stroke="#34d399"/>
+  <text x="1460" y="1110" text-anchor="middle" class="boxT">Daytona（云沙箱）</text>
+  <rect x="1400" y="1118" width="124" height="17" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="1460" y="1130" text-anchor="middle" class="badge" fill="#15803d">网络+宿主隔离</text>
+  <text x="1460" y="1150" text-anchor="middle" class="boxF">environments/daytona.py:30</text>
+  <text x="1460" y="1168" text-anchor="middle" class="boxF">Serverless 沙箱</text>
+  <text x="1460" y="1188" text-anchor="middle" class="boxF">自动 resume</text>
+
+  <!-- ============ CROSS-CUTTING: SECRETS (left) + SUPPLY CHAIN (right) ============ -->
+  <!-- Secrets -->
+  <rect x="40" y="1252" width="770" height="380" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.6"/>
+  <text x="60" y="1280" class="layerName" fill="#0369a1">⑤ 密钥与凭证安全 / Secrets &amp; Credentials</text>
+  <text x="60" y="1300" class="layerTag" fill="#0ea5e9">横切关注点 — 贯穿日志/prompt/落盘/多租户</text>
+  <text x="60" y="1320" class="boxThreat">威胁：密钥进日志/prompt · 跨租户串号 · 借入密钥落盘 · OAuth 单用 token 复用</text>
+
+  <rect x="60" y="1334" width="360" height="138" class="box" fill="#fff" stroke="#38bdf8"/>
+  <text x="240" y="1356" text-anchor="middle" class="boxT">输出脱敏 redact.py</text>
+  <text x="240" y="1374" text-anchor="middle" class="boxF">agent/redact.py:208 (48 厂商前缀)</text>
+  <text x="240" y="1390" text-anchor="middle" class="boxF">sk-/ghp_/xox/AIza/JWT/私钥/DB串</text>
+  <text x="240" y="1406" text-anchor="middle" class="boxF">mask_secret:213 保留首尾4位</text>
+  <text x="240" y="1424" text-anchor="middle" class="boxF">强制点:日志formatter hermes_logging.py:513</text>
+  <text x="240" y="1440" text-anchor="middle" class="boxF">发LLM前 run_agent.py:1389 · 工具输出 force</text>
+  <text x="240" y="1458" text-anchor="middle" class="boxF">cfg: HERMES_REDACT_SECRETS (默认on)</text>
+
+  <rect x="430" y="1334" width="360" height="138" class="box" fill="#fff" stroke="#38bdf8" stroke-width="2"/>
+  <text x="610" y="1356" text-anchor="middle" class="boxT">密钥作用域隔离（多租户）</text>
+  <rect x="500" y="1364" width="220" height="16" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="610" y="1376" text-anchor="middle" class="badge" fill="#15803d">fail-closed = 进程内租户边界</text>
+  <text x="610" y="1396" text-anchor="middle" class="boxF">agent/secret_scope.py:123 get_secret()</text>
+  <text x="610" y="1412" text-anchor="middle" class="boxF">ContextVar 每任务密钥映射</text>
+  <text x="610" y="1428" text-anchor="middle" class="boxF">multiplex激活+无scope → 抛 UnscopedSecretError</text>
+  <text x="610" y="1444" text-anchor="middle" class="boxF">强制点:网关每轮 _profile_runtime_scope</text>
+  <text x="610" y="1460" text-anchor="middle" class="boxF">gateway/run.py:1395 set_secret_scope</text>
+
+  <rect x="60" y="1484" width="360" height="134" class="box" fill="#fff" stroke="#38bdf8"/>
+  <text x="240" y="1506" text-anchor="middle" class="boxT">借入凭证落盘清洗</text>
+  <text x="240" y="1524" text-anchor="middle" class="boxF">agent/credential_persistence.py:151</text>
+  <text x="240" y="1540" text-anchor="middle" class="boxF">_PERSISTABLE_SOURCES:20 白名单</text>
+  <text x="240" y="1556" text-anchor="middle" class="boxF">仅 Hermes 自有 OAuth 可落原始密钥</text>
+  <text x="240" y="1572" text-anchor="middle" class="boxF">借入源→SHA256指纹+剥离 secret 值</text>
+  <text x="240" y="1590" text-anchor="middle" class="boxF">强制点:credential_pool.py:201 to_dict()</text>
+  <text x="240" y="1608" text-anchor="middle" class="boxF">落盘前 sanitize_borrowed_credential_payload</text>
+
+  <rect x="430" y="1484" width="360" height="134" class="box" fill="#fff" stroke="#38bdf8"/>
+  <text x="610" y="1506" text-anchor="middle" class="boxT">OAuth 令牌管理</text>
+  <text x="610" y="1524" text-anchor="middle" class="boxF">tools/mcp_oauth.py · mcp_oauth_manager.py</text>
+  <text x="610" y="1540" text-anchor="middle" class="boxF">token 落盘 0o600 · 磁盘 mtime 监测外部刷新</text>
+  <text x="610" y="1556" text-anchor="middle" class="boxF">401 去重 pending_401 防雪崩</text>
+  <text x="610" y="1572" text-anchor="middle" class="boxF">credential_pool.py:861 单用token防复用</text>
+  <text x="610" y="1590" text-anchor="middle" class="boxF">终态错误→STATUS_DEAD 永久排除</text>
+  <text x="610" y="1608" text-anchor="middle" class="boxF">多进程 _auth_store_lock() 串行化</text>
+
+  <!-- Supply chain & extension trust -->
+  <rect x="830" y="1252" width="770" height="380" rx="12" fill="#faf5ff" stroke="#a855f7" stroke-width="1.6"/>
+  <text x="850" y="1280" class="layerName" fill="#7e22ce">⑥ 供应链 &amp; 扩展信任 / Supply Chain &amp; Extension Trust</text>
+  <text x="850" y="1300" class="layerTag" fill="#a855f7">信任分级 — 人工审查是技能/插件的真边界（§2.5）</text>
+  <text x="850" y="1320" class="boxThreat">威胁：投毒依赖 · 恶意技能代码 · 恶意 MCP 配置 · 工具 schema 注入</text>
+
+  <rect x="850" y="1334" width="360" height="138" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1030" y="1356" text-anchor="middle" class="boxT">技能静态扫描（98 模式）</text>
+  <text x="1030" y="1374" text-anchor="middle" class="boxF">tools/skills_guard.py:96 (17类)</text>
+  <text x="1030" y="1390" text-anchor="middle" class="boxF">exfil/injection/persistence/提权…</text>
+  <text x="1030" y="1406" text-anchor="middle" class="boxF">scan_skill:627 + 隐形Unicode + 结构检查</text>
+  <text x="1030" y="1424" text-anchor="middle" class="boxF">裁决:1064 dangerous/caution/safe</text>
+  <text x="1030" y="1440" text-anchor="middle" class="boxF">信任分级:686 builtin/trusted/community</text>
+  <text x="1030" y="1458" text-anchor="middle" class="boxF">强制点:skills_hub.py:495 安装时 ·SHA256哈希</text>
+
+  <rect x="1220" y="1334" width="360" height="138" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1400" y="1356" text-anchor="middle" class="boxT">依赖恶意检测</text>
+  <text x="1400" y="1374" text-anchor="middle" class="boxF">tools/osv_check.py:26</text>
+  <text x="1400" y="1390" text-anchor="middle" class="boxF">OSV api 仅筛 MAL-* 恶意公告</text>
+  <text x="1400" y="1406" text-anchor="middle" class="boxF">强制点:mcp_tool.py:1776 stdio启动前</text>
+  <text x="1400" y="1422" text-anchor="middle" class="boxF">命中 raise ValueError 阻止 spawn</text>
+  <text x="1400" y="1440" text-anchor="middle" class="boxF">+ security_audit.py 按需扫 venv/插件/MCP</text>
+  <text x="1400" y="1458" text-anchor="middle" class="boxF">+ 公告 security_advisories.py 启动横幅</text>
+
+  <rect x="850" y="1484" width="360" height="134" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1030" y="1506" text-anchor="middle" class="boxT">MCP 服务器信任</text>
+  <text x="1030" y="1524" text-anchor="middle" class="boxF">hermes_cli/mcp_security.py:121</text>
+  <text x="1030" y="1540" text-anchor="middle" class="boxF">IOC 硬黑名单(攻击者SSH键/0day IP)</text>
+  <text x="1030" y="1556" text-anchor="middle" class="boxF">shell+网络外联 / OS持久化形态检测</text>
+  <text x="1030" y="1572" text-anchor="middle" class="boxF">双重强制:保存时拒写 + 加载时跳过</text>
+  <text x="1030" y="1590" text-anchor="middle" class="boxF">mcp_tool.py:3084 _filter_suspicious</text>
+  <text x="1030" y="1608" text-anchor="middle" class="boxF">+ AST审计 skills_ast_audit.py(仅诊断)</text>
+
+  <rect x="1220" y="1484" width="360" height="134" class="box" fill="#fff" stroke="#c084fc"/>
+  <text x="1400" y="1506" text-anchor="middle" class="boxT">工具 Schema 净化</text>
+  <text x="1400" y="1524" text-anchor="middle" class="boxF">tools/schema_sanitizer.py:46</text>
+  <text x="1400" y="1540" text-anchor="middle" class="boxF">MCP schema 规范化防后端崩溃</text>
+  <text x="1400" y="1556" text-anchor="middle" class="boxF">强制点:model_tools.py:525 每次取定义</text>
+  <text x="1400" y="1572" text-anchor="middle" class="boxF">+ 环境变量注入防护 config.py:181</text>
+  <text x="1400" y="1588" text-anchor="middle" class="boxF">_ENV_VAR_NAME_DENYLIST (LD_PRELOAD…)</text>
+  <text x="1400" y="1606" text-anchor="middle" class="boxF">+ 技能来源追踪 skill_provenance.py</text>
+
+  <!-- ============ LAYER 7: AUDIT & OBSERVABILITY (bottom) ============ -->
+  <rect x="40" y="1652" width="1560" height="170" rx="12" fill="#f5f5f4" stroke="#78716c" stroke-width="1.6"/>
+  <text x="60" y="1680" class="layerName" fill="#44403c">⑦ 审计 · 可观测 · 成本保护 / Audit &amp; Cost Guard</text>
+  <text x="60" y="1700" class="layerTag" fill="#78716c">跨全栈的告警、漏洞扫描与配额熔断（成本即安全）</text>
+
+  <rect x="60" y="1712" width="360" height="92" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="240" y="1734" text-anchor="middle" class="boxT">供应链公告 + 漏洞审计</text>
+  <text x="240" y="1752" text-anchor="middle" class="boxF">security_advisories.py (启动横幅)</text>
+  <text x="240" y="1768" text-anchor="middle" class="boxF">已知投毒名单·mistralai 2.4.6 蠕虫</text>
+  <text x="240" y="1786" text-anchor="middle" class="boxF">hermes doctor --ack · 24h 缓存</text>
+
+  <rect x="430" y="1712" width="360" height="92" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="610" y="1734" text-anchor="middle" class="boxT">姿态审计（启动告警）</text>
+  <text x="610" y="1752" text-anchor="middle" class="boxF">security_audit_startup.py</text>
+  <text x="610" y="1768" text-anchor="middle" class="boxF">root/SSH密码/无认证监听=RCE</text>
+  <text x="610" y="1786" text-anchor="middle" class="boxF">gateway/run.py:17483 · 仅告警</text>
+
+  <rect x="800" y="1712" width="360" height="92" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="980" y="1734" text-anchor="middle" class="boxT">OSV 漏洞审计（按需）</text>
+  <text x="980" y="1752" text-anchor="middle" class="boxF">hermes_cli/security_audit.py</text>
+  <text x="980" y="1768" text-anchor="middle" class="boxF">venv+插件+MCP vs OSV querybatch</text>
+  <text x="980" y="1786" text-anchor="middle" class="boxF">hermes security audit --fail-on</text>
+
+  <rect x="1170" y="1712" width="410" height="92" class="box" fill="#fff" stroke="#a8a29e"/>
+  <text x="1375" y="1734" text-anchor="middle" class="boxT">速率追踪 + 跨会话熔断</text>
+  <text x="1375" y="1752" text-anchor="middle" class="boxF">agent/rate_limit_tracker.py (>80% 告警)</text>
+  <text x="1375" y="1768" text-anchor="middle" class="boxF">agent/nous_rate_guard.py:189 区分真实配额/瞬时故障</text>
+  <text x="1375" y="1786" text-anchor="middle" class="boxF">~/.hermes/rate_limits/nous.json 防9×重试放大</text>
+
+  <!-- ============ DESIGN PRINCIPLES BOX ============ -->
+  <rect x="40" y="1842" width="1560" height="248" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="60" y="1872" class="grpName" font-size="17">安全设计哲学 / Design Principles（SECURITY.md）</text>
+
+  <text x="60" y="1902" class="note" font-size="13"><tspan font-weight="700" fill="#15803d">1. 单一边界原则</tspan>：进程内一切（审批门/脱敏/扫描/白名单）是<tspan font-weight="700">启发式</tspan>，OS 隔离是<tspan font-weight="700">唯一边界</tspan>。诚实标注降低误用。</text>
+  <text x="60" y="1928" class="note" font-size="13"><tspan font-weight="700" fill="#b91c1c">2. 纵深防御</tspan>：危险命令 = Hardline(不可绕) → sudo守卫(不可绕) → Tirith → 47模式 → 审批，五层串联。</text>
+  <text x="60" y="1954" class="note" font-size="13"><tspan font-weight="700" fill="#0369a1">3. Fail-closed 关键面</tspan>：网关无白名单拒绝派发 · 多租户 secret_scope 无 scope 抛异常 · SSRF DNS 失败拒绝 · 云元数据强制阻断。</text>
+  <text x="60" y="1980" class="note" font-size="13"><tspan font-weight="700" fill="#a16207">4. Fail-open 容错面</tspan>：Tirith / OSV / website_policy 出错放行（有其他层兜底，避免可用性崩塌）。权衡取舍清晰。</text>
+  <text x="60" y="2006" class="note" font-size="13"><tspan font-weight="700" fill="#7e22ce">5. 信任分级 + 人工审查</tspan>：技能/MCP 按来源(builtin/trusted/community)施加不同策略；代码明确导向"装前读 Python"——人工审查是技能/插件的真边界。</text>
+  <text x="60" y="2032" class="note" font-size="13"><tspan font-weight="700" fill="#44403c">6. 成本即安全</tspan>：rate guard 把配额耗尽/重试放大当作要防御的滥用——9×重试放大经跨会话熔断收敛。</text>
+  <text x="60" y="2064" class="note" font-size="13"><tspan font-weight="700">范围（§3）</tspan>：In Scope = 逃离声明的OS隔离姿态/未授权外部面访问/应阻止的凭证外泄。Out of Scope = 绕过进程内启发式/单纯提示注入/所选姿态的后果/社区技能插件。</text>
+
+  <text x="60" y="2108" class="note" font-size="11" fill="#94a3b8">详见 17-安全功能分析.md · 所有 file:line 已对照源码核对 · 等宽字体=真实实现位置</text>
+</svg>
